@@ -133,6 +133,7 @@ boolean director_inhibited_facing(
 	short local_player_index);
 boolean director_inhibited_input(
 	short local_player_index);
+boolean director_flying_controls_active(short local_player_index);
 director_perspective director_get_perspective(
 	short local_player_index);
 short director_desired_perspective(

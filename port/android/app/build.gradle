@@ -35,7 +35,7 @@ android {
         minSdk 28
         targetSdk 35
         versionCode Math.max(1, buildNumber)
-        versionName "3.1"
+        versionName "3.5"
         buildConfigField "int", "HALO_BUILD_NUMBER", "${buildNumber}"
         ndk {
             abiFilters "arm64-v8a"

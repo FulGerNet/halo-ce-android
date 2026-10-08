@@ -297,6 +297,15 @@ boolean director_inhibited_input(
 	return director_get(local_player_index)->inhibited_input;
 }
 
+/* Whether direct mouse/touch look belongs to the flying camera. The player
+   polls before director_update, so inhibition alone cannot protect the delta. */
+boolean director_flying_controls_active(short local_player_index)
+{
+    struct director *director = director_get(local_player_index);
+    return director->camera_proc == (director_camera_update_proc)flying_camera_update &&
+        director->debug_controls;
+}
+
 director_perspective director_get_perspective(
 	short local_player_index)
 {

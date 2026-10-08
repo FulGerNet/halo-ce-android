@@ -187,7 +187,7 @@ static void ui_porting_text(struct widget_instance *style, char const *text, rec
     wchar_t wide[96];
     point2d offset = {0, 0};
     rectangle2d scaled_clip = *clip;
-    int percent = ui_porting_menu.page ? 160 : ui_porting_context == 1 ? 100 : 125;
+    int percent = ui_porting_menu.page ? 160 : ui_porting_context == 1 ? 140 : 125;
     ascii_to_wide(text, wide, sizeof(wide));
     definition.bounds = bounds;
     definition.bounds.x1 = bounds.x0 + (bounds.x1-bounds.x0)*100/percent;

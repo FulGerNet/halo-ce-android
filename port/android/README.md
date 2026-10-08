@@ -157,7 +157,7 @@ bitmap is selected from the current map and fills the entire widescreen area.
   50% to 200%; look sensitivity ranges from 0.25x to 4x. All controls,
   including copies, can be reached by scrolling without Previous/Next pages.
 - **General** contains **Rumble**, **Gyroscope**, **Gyroscope sensitivity**,
-  **FPS counter** and **Field of view (FOV)**. FOV uses a 55â€“90 degree slider
+  **FPS counter** and **Field of view (FOV)**. FOV uses a 55Ã¢â‚¬â€œ90 degree slider
   with a 70 degree default, preserves weapon zoom and is saved for both menus.
   Unsupported hardware is marked unavailable. Rumble
   defaults on, gyro and FPS default off. Gyro sensitivity has its own
@@ -186,10 +186,10 @@ Zoom switches once per press, including when held across several frames.
 Swipe aiming uses the same **Look sensitivity** setting as the player camera
 (default **2x** for new configurations; existing preferences are preserved).
 The sensitivity slider can be dragged beyond either edge to reach its full
-0.25x–4x range. Fire/Grenade control vertical camera movement.
+0.25xâ€“4x range. Fire/Grenade control vertical camera movement.
 
 Version 4 `.halolayout` files include the Camera mode control. Imports of
-versions 1â€“3 insert it without losing existing positions or button copies.
+versions 1Ã¢â‚¬â€œ3 insert it without losing existing positions or button copies.
 These files also preserve gyro sensitivity and the FPS
 preference, FOV and Disable all overlay. Missing new settings use 70 degrees
 and enabled overlays. Startup cheats are separate from layout exports. Version 1 and 2 layouts remain supported; their gyro sensitivity
@@ -439,3 +439,10 @@ Builds without a valid `HALO_BUILD_NUMBER` use `git rev-list --count HEAD`,
 including direct Gradle builds. Both versionCode and the Java updater receive
 the resolved number. Installing an update over an existing APK also requires
 the same signing key.
+
+### Version 3.5
+
+The main-menu Porting options label is 40% larger. Flying-camera control
+uses the same touch/gyro look reader as the player camera. While free-camera
+controls are selected, the earlier player-input pass leaves the motion
+accumulator intact for the director, so every swipe reaches the camera.

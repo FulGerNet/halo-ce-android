@@ -9,6 +9,14 @@ match=re.search(r'static boolean director_update_controls\(\s*short local_player
 start=source.index('{',match.start());end=start+1;depth=1
 while depth:
     depth+=(source[end]=='{')-(source[end]=='}');end+=1
+query_match=re.search(r'boolean director_flying_controls_active\(short local_player_index\)\s*\{',source)
+query_start=source.index('{',query_match.start());query_end=query_start+1;depth=1
+while depth:
+    depth+=(source[query_end]=='{')-(source[query_end]=='}');query_end+=1
+query=source[query_match.start():query_end]
+player_source=(root/'source/game/player_control.c').read_text()
+condition=re.search(r'if \(\s*#ifdef HALO_ANDROID\s*!director_flying_controls_active.*?halo_linux_mouse_look\(gamepad_index, &mouse_yaw, &mouse_pitch\)\)',player_source,re.S).group(0)
+player_poll='void poll_player_look(void){short local_player_index=0,gamepad_index=0;real mouse_yaw,mouse_pitch;'+condition+'{player_yaw+=mouse_yaw;player_pitch+=mouse_pitch;}}'
 code=r'''
 #define HALO_ANDROID 1
 typedef int boolean;typedef unsigned char byte;typedef float real;
@@ -34,6 +42,7 @@ static struct player_datum{short local_player_index;}player;
 static struct{real dtime;}director_globals;
 static boolean director_camera_switch_fast;
 static int pending,look_calls,inhibited,facing_inhibited;
+static int simulate_consumption,look_pending;static real look_scale=1,player_yaw,player_pitch;
 void first_person_camera_update(void){}void following_camera_update(void){}void flying_camera_update(void){}
 struct director*director_get(short i){return &d;}
 int local_player_get_player_index(short i){return i;}
@@ -45,10 +54,14 @@ int input_key_is_down(int key){return FALSE;}
 void director_process_variables(short i,unsigned long flags,real delta){}
 void director_inhibit_input(short i){inhibited++;}
 void director_inhibit_facing(short i){facing_inhibited++;}
-int halo_linux_mouse_look(short i,real*yaw,real*pitch){look_calls++;*yaw=-0.22f;*pitch=0.11f;return TRUE;}
+int halo_linux_mouse_look(short i,real*yaw,real*pitch){
+ look_calls++;*yaw=*pitch=0;
+ if(simulate_consumption&&!look_pending)return FALSE;
+ look_pending=0;*yaw=-0.22f*look_scale;*pitch=0.11f*look_scale;return TRUE;
+}
 int host_touch_camera_read(void){int result=pending;pending=0;return result;}
 void*csmemset(void*p,int v,unsigned long n){byte*q=p;while(n--)*q++=v;return p;}
-'''+source[match.start():end]+r'''
+'''+query+'\n'+player_poll+'\n'+source[match.start():end]+r'''
 int run_tests(void){
  struct camera_control controls;player.local_player_index=0;director_globals.dtime=1.f/60;d.debug_input_scale=1;
  d.camera_proc=first_person_camera_update;pending=1;
@@ -70,6 +83,23 @@ int run_tests(void){
  pad.buttons[_gamepad_binary_button_right_thumb]=0;pad.buttons[_gamepad_analog_button_black]=30;
  if(!director_update_controls(0,&controls)||director_update_controls(0,&controls))return 7;
  pending=1;if(!director_update_controls(0,&controls)||director_update_controls(0,&controls))return 8;
+ /* Actual frame order: player polls first, then the director reads the same
+    accumulator. The player must leave it intact while the free camera owns it. */
+ simulate_consumption=1;d.camera_proc=flying_camera_update;d.debug_controls=TRUE;
+ pad.buttons[_gamepad_analog_button_black]=0;look_pending=1;int before=look_calls;
+ poll_player_look();
+ if(look_calls!=before||player_yaw||player_pitch||!look_pending)return 12;
+ director_update_controls(0,&controls);
+ if(look_pending||controls.facing_delta.yaw!=-0.22f||controls.facing_delta.pitch!=0.11f)return 13;
+ look_scale=2;look_pending=1;poll_player_look();director_update_controls(0,&controls);
+ if(controls.facing_delta.yaw!=-0.44f||controls.facing_delta.pitch!=0.22f)return 14;
+ /* Normal camera uses that exact reader, including the same sensitivity. */
+ d.camera_proc=first_person_camera_update;look_pending=1;poll_player_look();
+ if(player_yaw!=-0.44f||player_pitch!=0.22f||look_pending)return 15;
+ d.camera_proc=following_camera_update;
+ if(director_flying_controls_active(0))return 16;
+ d.camera_proc=flying_camera_update;d.debug_controls=FALSE;look_pending=1;poll_player_look();
+ if(look_pending||director_flying_controls_active(0))return 17;
  return 0;
 }
 '''

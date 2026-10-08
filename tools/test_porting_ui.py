@@ -165,7 +165,7 @@ int run_tests(void){
  ui_porting_context=1;ui_porting_menu.page=0;glyphs=0;draw_percent=100;
  ui_porting_text(&style,"Porting options",row,&clip,TRUE,FALSE);
  if(glyphs!=15||current_color.alpha!=0.6f||percent!=100||last_justification!=2)return 1;
- if(draw_percent!=100||current_color.red!=0||current_color.green!=128.f/255.f||current_color.blue!=1)return 14;
+ if(draw_percent!=140||current_color.red!=0||current_color.green!=128.f/255.f||current_color.blue!=1)return 14;
  /* The old Quit row is replaced at exactly its native bounds, without an extra row. */
  fixture.definition_tag_index=99;fixture.parent=&parent;
  ui_mouse_target_count=1;ui_mouse_targets[0].kind=_ui_mouse_target_item;

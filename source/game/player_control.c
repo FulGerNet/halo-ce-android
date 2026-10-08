@@ -1295,7 +1295,13 @@ static void get_local_player_input_blob(
 						real mouse_yaw;
 						real mouse_pitch;
 
-						if (halo_linux_mouse_look(gamepad_index, &mouse_yaw, &mouse_pitch))
+						/* Leave the shared, sensitivity-scaled delta for the free camera:
+                           player input runs first and must not drain its swipe/gyro. */
+                        if (
+#ifdef HALO_ANDROID
+                            !director_flying_controls_active(local_player_index) &&
+#endif
+                            halo_linux_mouse_look(gamepad_index, &mouse_yaw, &mouse_pitch))
 						{
 							if (player->unit_index != NONE && control->zoom_level != NONE)
 							{
