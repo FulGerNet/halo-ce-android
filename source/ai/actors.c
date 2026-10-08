@@ -317,6 +317,7 @@ symbols in this file:
 #include "units/units.h"
 #include "units/vehicle_definitions.h"
 #include "units/vehicles.h"
+#include "networking/network_game_globals.h"
 
 /* ---------- constants */
 
@@ -2224,6 +2225,12 @@ long actor_new(
 	long actor_definition_index;
 	long actor_index = NONE;
 
+	/* port: a client of the distributed netcode runs no AI: it has the host's
+	actors' units, driven as the host sends them (port/linux/game/network_actors.c),
+	and its own (placed at the map's start or by its scripts) would be extras
+	the host doesn't have */
+	if (network_game_distributed_client())
+		return NONE;
 	if (actor_variant_definition_index != NONE)
 	{
 		actor_variant_definition = actor_variant_definition_get(actor_variant_definition_index);
@@ -2231,7 +2238,25 @@ long actor_new(
 		if (actor_definition_index != NONE)
 		{
 			actor_definition = actor_definition_get(actor_definition_index);
-			actor_index = datum_new(actor_data);
+			/* port: only an actor of a type the actor type tables have (a
+			map's type indexes their definitions and function pointers);
+			else no actor is made, as when the pool is full, said once */
+			if (!VALID_INDEX(actor_definition->type, NUMBER_OF_ACTOR_TYPES))
+			{
+				static boolean reported = FALSE;
+
+				if (!reported)
+				{
+					error(_error_silent, "actor %s is of type %d (there are %d)",
+						tag_get_name(actor_definition_index),
+						actor_definition->type,
+						NUMBER_OF_ACTOR_TYPES);
+					reported = TRUE;
+				}
+				actor_index = NONE;
+			}
+			else
+				actor_index = datum_new(actor_data);
 			if (actor_index != NONE)
 			{
 				actor = actor_get(actor_index);
@@ -2392,8 +2417,11 @@ void actor_customize_unit(
 			actor_variant_definition->unit.forced_shader_permutation_index;
 	}
 
+	/* port: no more than the object's change colors (a map's count; those
+	past them did nothing, and past SHORT_MAX the short counter wraps and the
+	loop never ends) */
 	for (change_color_index = 0;
-		change_color_index < actor_variant_definition->change_colors.count;
+		change_color_index < MIN(actor_variant_definition->change_colors.count, NUMBER_OF_OBJECT_CHANGE_COLORS);
 		change_color_index++)
 	{
 		struct actor_variant_change_colors *change_colors = TAG_BLOCK_GET_ELEMENT(
@@ -2662,6 +2690,9 @@ long actor_place(
 	long unit_index;
 
 	match_assert("c:\\halo\\SOURCE\\ai\\actors.c", 603, starting_location);
+	/* port: none on a client of the distributed netcode (actor_new) */
+	if (network_game_distributed_client())
+		return NONE;
 	objects_garbage_collection();
 
 	actor_variant_definition =
@@ -2831,7 +2862,8 @@ short actors_spawn_from_unit(
 {
 	short spawned_actor_count = 0;
 
-	if (actor_variant_definition_index != NONE && actor_count > 0)
+	/* port: none on a client of the distributed netcode (actor_new) */
+	if (actor_variant_definition_index != NONE && actor_count > 0 && !network_game_distributed_client())
 	{
 		struct unit_datum *source_unit = unit_get(unit_index);
 		long source_actor_index = source_unit->unit.swarm_actor_index != NONE ?

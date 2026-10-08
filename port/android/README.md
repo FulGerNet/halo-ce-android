@@ -52,11 +52,17 @@ To install the data with the app:
 
 1. Copy the disc image to the phone.
 2. Start the app.
-3. Push the button. The file picker of the system opens.
+3. Push **Choose disc image**. The file picker of the system opens.
 4. Select the disc image.
 5. Wait while the app extracts the data (approximately 1.8 GB). Then the
    game starts.
 6. You can delete the disc image.
+
+Alternatively, choose **Choose extracted maps** and select the folder that
+contains `ui.map` and the other extracted map files, or its parent folder
+with a `maps` subfolder. The system folder picker grants read access; the
+app copies the files into its own storage. An invalid or failed import
+leaves the existing maps in place. The source folder is never modified.
 
 To install the data from a computer:
 
@@ -72,7 +78,8 @@ To install the data from a computer:
 To make a copy of the saved games, enter
 `adb pull /sdcard/Android/data/com.halo.decomp/files/save`.
 
-The main menu build label shows **FulGer** for all imported disc versions.
+The main menu build label shows **Made by FulGer** for all imported disc versions.
+Tap it to open https://www.youtube.com/@fulger.a.
 
 ## Controls
 
@@ -150,7 +157,7 @@ bitmap is selected from the current map and fills the entire widescreen area.
   50% to 200%; look sensitivity ranges from 0.25x to 4x. All controls,
   including copies, can be reached by scrolling without Previous/Next pages.
 - **General** contains **Rumble**, **Gyroscope**, **Gyroscope sensitivity**,
-  **FPS counter** and **Field of view (FOV)**. FOV uses a 55–90 degree slider
+  **FPS counter** and **Field of view (FOV)**. FOV uses a 55â€“90 degree slider
   with a 70 degree default, preserves weapon zoom and is saved for both menus.
   Unsupported hardware is marked unavailable. Rumble
   defaults on, gyro and FPS default off. Gyro sensitivity has its own
@@ -174,10 +181,15 @@ It can be moved, resized, hidden and duplicated in Overlay settings from
 both main and pause menus. **Gren. type** keeps its original hold behavior.
 In flying mode, **Zoom** toggles player/camera control; swipe and gyro aiming
 rotate the flying camera while its controls are active, and the movement
-stick translates it. Fire/Grenade control vertical camera movement.
+stick translates it at about 8 metres per second at full deflection.
+Zoom switches once per press, including when held across several frames.
+Swipe aiming uses the same **Look sensitivity** setting as the player camera
+(default **2x** for new configurations; existing preferences are preserved).
+The sensitivity slider can be dragged beyond either edge to reach its full
+0.25x–4x range. Fire/Grenade control vertical camera movement.
 
 Version 4 `.halolayout` files include the Camera mode control. Imports of
-versions 1–3 insert it without losing existing positions or button copies.
+versions 1â€“3 insert it without losing existing positions or button copies.
 These files also preserve gyro sensitivity and the FPS
 preference, FOV and Disable all overlay. Missing new settings use 70 degrees
 and enabled overlays. Startup cheats are separate from layout exports. Version 1 and 2 layouts remain supported; their gyro sensitivity
@@ -358,7 +370,11 @@ functions of OpenGL ES 3.2 if they are available:
   changes the indices.
 - On OpenGL ES 3.1 and later, the visibility tests (lens flares) count
   samples with an atomic counter, as the NV2A did. OpenGL ES 3.0 tells only
-  if a sample is visible.
+  if a sample is visible. The GPU copies the counters at the end of each
+  frame, and the CPU reads the copy two frames later, when the frame's fence
+  has passed: a result is the latest count the GPU has finished, as with
+  the query buffer of desktop OpenGL. A read of the counters themselves
+  waits for the GPU, which halved the frame rate on Turnip (Zink).
 
 ### Calling conventions
 
@@ -418,3 +434,8 @@ assembly of the port is necessary:
   available, the app shows a message.
 - Kernels with 16 KB pages (a developer option of Android 15) do not
   operate. The Xbox memory uses 4 KB pages.
+
+Builds without a valid `HALO_BUILD_NUMBER` use `git rev-list --count HEAD`,
+including direct Gradle builds. Both versionCode and the Java updater receive
+the resolved number. Installing an update over an existing APK also requires
+the same signing key.

@@ -121,6 +121,7 @@ symbols in this file:
 
 #include "camera_scripting.h"
 #include "dead_camera.h"
+#include "coop_spectate.h" /* port: port/linux/game/coop_spectate.c */
 #include "editor_flying_camera.h"
 #include "first_person_camera.h"
 #include "flying_camera.h"
@@ -700,8 +701,12 @@ static void director_choose_camera_game(
 	}
 	else
 	{
-		struct player_datum *player = player_get(local_player_get_player_index(local_player_index));
-		boolean use_dead_camera = player->unit_index == NONE && player->statistics.deaths > 0;
+		long player_index = local_player_get_player_index(local_player_index);
+		struct player_datum *player = player_get(player_index);
+		/* port: and a network co-op player who hasn't spawned yet, waiting for
+		the level's first checkpoint, watches too */
+		boolean use_dead_camera = player->unit_index == NONE &&
+			(player->statistics.deaths > 0 || players_coop_waiting_to_start(player_index));
 
 		/* (port: not a client in another's game, the host's rules: a flying
 		camera would see all of it, and one behind the player round its
@@ -713,17 +718,25 @@ static void director_choose_camera_game(
 			director_choose_game_perspective(local_player_index, initialize);
 			if (use_dead_camera)
 			{
-				if (director->camera_proc != (director_camera_update_proc)dead_camera_update)
+				/* port: a dead network co-op player watches a living teammate
+				(port/linux/game/coop_spectate.c), or its own body if nobody is alive */
+				long watched_unit_index = coop_spectating() ? coop_spectate_unit(local_player_index) : NONE;
+
+				if (director->camera_proc != (director_camera_update_proc)dead_camera_update ||
+					(watched_unit_index != NONE &&
+						((struct dead_camera *)director->camera_data)->unit_index != watched_unit_index))
 				{
 					dead_camera_new(
 						(struct dead_camera *)director->camera_data,
 						local_player_index,
-						NONE);
+						watched_unit_index);
 					director_set_camera(
 						local_player_index,
 						(director_camera_update_proc)dead_camera_update,
 						TRUE);
 				}
+				if (watched_unit_index != NONE)
+					coop_spectate_camera((struct dead_camera *)director->camera_data);
 			}
 			else if (director->camera_proc == (director_camera_update_proc)dead_camera_update)
 			{
@@ -800,6 +813,11 @@ static boolean director_update_controls(
 		unsigned long control_flags;
 		struct gamepad_state const *gamepad =
 			input_get_gamepad_state((short)player_index);
+        /* A 30 Hz snapshot is reused by several render frames. */
+        static boolean zoom_down[MAXIMUM_NUMBER_OF_LOCAL_PLAYERS];
+        boolean down = gamepad->buttons[_gamepad_binary_button_right_thumb] != 0;
+        boolean zoom_pressed = down && !zoom_down[local_player_index];
+        zoom_down[local_player_index] = down;
 
 		if (director_camera_switch_fast)
 		{
@@ -824,8 +842,8 @@ static boolean director_update_controls(
 			director->camera_proc !=
 				(director_camera_update_proc)following_camera_update)
 		{
-			if (gamepad->buttons[_gamepad_binary_button_right_thumb] == 1)
-				director->debug_controls = !director->debug_controls;
+            if (zoom_pressed)
+                director->debug_controls = !director->debug_controls;
 			if (director->debug_controls)
 			{
 				control_flags = 0;
@@ -863,10 +881,20 @@ static boolean director_update_controls(
 #endif
 				controls->position_delta.i =
 					(real)gamepad->sticks[_gamepad_stick_left].y *
-						director->debug_input_scale * director_globals.dtime * 0.00005f;
+						director->debug_input_scale * director_globals.dtime *
+#ifdef HALO_ANDROID
+                        0.00025f; /* Full stick: about 8 metres per second. */
+#else
+                        0.00005f;
+#endif
 				controls->position_delta.j =
 					(real)gamepad->sticks[_gamepad_stick_left].x *
-						director->debug_input_scale * director_globals.dtime * -0.00005f;
+						director->debug_input_scale * director_globals.dtime *
+#ifdef HALO_ANDROID
+                        -0.00025f;
+#else
+                        -0.00005f;
+#endif
 				controls->position_delta.k +=
 					director->debug_variables[_variable_height].delta;
 				controls->active = TRUE;

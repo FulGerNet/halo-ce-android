@@ -161,7 +161,9 @@ struct game_options;
 #include "memory/data.h"
 #include "networking/network_messages.h"
 #include "networking/telnet_console.h"
+#include "objects/object_lights.h"
 #include "objects/objects.h"
+#include "objects/widgets/antenna.h"
 #include "objects/widgets/widgets.h"
 #include "physics/breakable_surfaces.h"
 #include "physics/collision_usage.h"
@@ -179,9 +181,12 @@ struct game_options;
 #include "structures/structures.h"
 #include "units/units.h"
 #include "units/vehicles.h"
+#include "network_coop.h" /* port: port/linux/game/network_coop.c */
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
+/* port: a client drives the host's actors' units as the host sent them (port/linux/game/network_actors.c) */
+void network_actors_drive(void);
 
 /* ---------- constants */
 
@@ -314,6 +319,13 @@ void game_tick(
 		0x28D,
 		game_globals->active);
 
+	/* port: a data array gone out of order reported, and the lights made
+	again if it was theirs (game_state.c, object_lights.c), before anything
+	of the tick: a loaded game state's first tick, its scripts placing
+	actors, made the first light from it (Sentry NATIVE-7) */
+	game_state_check_data_arrays();
+	lights_port_recover();
+
 	/* port: a client of another's game, the host's rules (its own cheats and
 	game speed, set before it joined too, put back) */
 	cheats_network_client_enforce();
@@ -325,24 +337,39 @@ void game_tick(
 	positions, and could place objects of their own) */
 	if (!network_game_distributed_client())
 		ai_update();
+	else
+		network_actors_drive();
 	players_update_before_game();
 
 	seconds_per_tick = game_globals->players_are_double_speed
 		? 1.0f / (2 * TICKS_PER_SECOND)
 		: 1.0f / TICKS_PER_SECOND;
 	effects_update(seconds_per_tick);
+	/* An antenna's chain is a simulation of the Xbox's own step, an update a
+	tick: stepped a frame at a time, its springs, its carry and its points'
+	physics act against the frames' own movement of it, and a vehicle at
+	speed swings it far wider than a tick's step does. The frames between the
+	ticks are drawn from what each tick leaves (antenna.c). */
+	antennas_update(seconds_per_tick);
 	lock_global_random_seed();
 	rumble_update();
 	first_person_weapons_update();
 	unlock_global_random_seed();
 	game_engine_update();
 	editor_update();
-	hs_update();
+	/* port: in network co-op only the host runs the scripts. A client running
+	them would place the map's actors and objects a second time and make
+	decisions that belong to the host. */
+	if (!(network_game_distributed_client() && network_coop_active()))
+		hs_update();
 	recorded_animations_update();
 	objects_update();
 	players_update_after_game();
 	hud_update();
 	player_effect_update();
+	/* port: and at its end, before the frame draws the lights */
+	game_state_check_data_arrays();
+	lights_port_recover();
 
 	profile_exit(game_update_section);
 	collision_log_end_period();
@@ -925,7 +952,9 @@ void remove_quitting_players_from_game(
 	struct player_datum *player;
 	long current_time;
 
-	if (!game_engine_running())
+	/* port: also in network co-op, which has no game engine. Without this a
+	player who left kept their unit, and it respawned. */
+	if (!game_engine_running() && !network_coop_active())
 		return;
 
 	current_time = game_time_get();

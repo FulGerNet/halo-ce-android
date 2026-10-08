@@ -190,6 +190,7 @@ symbols in this file:
 #include "tag_files/tag_files.h"
 #include "scenario/scenario_definitions.h"
 #include "rasterizer/rasterizer.h"
+#include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
 
 #include <xtl.h>
 
@@ -427,7 +428,9 @@ static struct cache_file_runtime_globals cache_file_globals;
 void tags_header_register_vertex_and_index_buffers(
 	struct cache_file_tag_header *header)
 {
-	short index;
+	/* port: a long, as the buffers' counts are (a short wrapped on a count
+	past 0x7FFF, and the loop never ended) */
+	long index;
 
 	for (index = 0; index < header->vertex_buffer_count; index++)
 	{
@@ -450,7 +453,9 @@ void tags_header_register_vertex_and_index_buffers(
 void tags_header_deregister_vertex_and_index_buffers(
 	struct cache_file_tag_header *header)
 {
-	short index;
+	/* port: a long, as the buffers' counts are (a short wrapped on a count
+	past 0x7FFF, and the loop never ended) */
+	long index;
 
 	for (index = 0; index < header->vertex_buffer_count; index++)
 	{
@@ -480,7 +485,9 @@ void tags_header_deregister_vertex_and_index_buffers(
 void structure_bsp_header_register_vertex_buffers(
 	struct cache_file_structure_bsp_header *header)
 {
-	short index;
+	/* port: a long, as the buffers' counts are (a short wrapped on a count
+	past 0x7FFF, and the loop never ended) */
+	long index;
 
 	for (index = 0; index < header->vertex_buffer_count; index++)
 	{
@@ -504,7 +511,9 @@ void structure_bsp_header_register_vertex_buffers(
 void structure_bsp_header_deregister_vertex_buffers(
 	struct cache_file_structure_bsp_header *header)
 {
-	short index;
+	/* port: a long, as the buffers' counts are (a short wrapped on a count
+	past 0x7FFF, and the loop never ended) */
+	long index;
 
 	rasterizer_globals.current_lock_operation = _rasterizer_lock_bsp_switch;
 
@@ -573,8 +582,16 @@ boolean cache_files_precache_is_copying_map(
 boolean cache_files_precache_map_loaded(
 	const char *map_name)
 {
+	/* port: a Halo Custom Edition map (custom_maps\<name>) is read in place
+	and never copied to the cache partition; it is never the game's own map
+	of that file name (port/linux/game/custom_edition_cache.c) */
+	if (custom_edition_level_name(map_name))
+		return custom_edition_cache_playable(map_name);
 	return cached_map_files_find_map(tag_name_strip_path(map_name)) != NONE;
 }
+
+/* (the port's, port/linux/src/sdl_platform.c) */
+void platform_log(char const *format, ...);
 
 boolean cache_files_precache_map_begin(
 	const char *map_name,
@@ -582,6 +599,19 @@ boolean cache_files_precache_map_begin(
 {
 	const char *cache_map_name = tag_name_strip_path(map_name);
 
+	/* port: a Halo Custom Edition map (custom_maps\<name>) this machine has
+	not is missing, as a map not on the DVD is: never the game's own map of
+	its file name (port/linux/game/custom_edition_cache.c) */
+	if (custom_edition_level_name(map_name) && !custom_edition_cache_playable(map_name))
+	{
+		error(_error_silent, "couldn't find the Custom Edition map '%s' in custom_maps", map_name);
+		if (copy_map)
+		{
+			display_error_damaged_media();
+		}
+
+		return FALSE;
+	}
 	if (!cache_files_precache_map_loaded(map_name))
 	{
 		struct cache_file_header header;
@@ -590,11 +620,45 @@ boolean cache_files_precache_map_begin(
 		if (cache_file_read_header_from_dvd(cache_map_name, &header))
 		{
 			long buffer_size = cache_copy_buffer_size(copy_map);
-			void *buffer = texture_cache_steal_memory(buffer_size);
 			short map_file_index = cached_map_files_find_free_map(
 				header.file_length,
 				header.scenario_type);
-			struct cached_map_file *map_file = cached_map_file_get(map_file_index);
+			void *buffer;
+			struct cached_map_file *map_file;
+
+			/* port: the cache file slots are found by the name in their
+			header (cached_map_files_find_map): a map file whose header names
+			another map would be copied again each time it was asked for, for
+			ever */
+			if (_stricmp(header.name, cache_map_name) != 0)
+			{
+				error(_error_silent, "map '%s' names itself '%s' in its header: refused", cache_map_name, header.name);
+				platform_log("map %s.map names itself '%s' in its header; a map's name must be its file's",
+					cache_map_name, header.name);
+				if (copy_map)
+				{
+					display_error_damaged_media();
+				}
+
+				return FALSE;
+			}
+
+			/* port: a map no cache file holds (of no type the cache files are
+			for, or too big for its type's) is not precached; the texture
+			cache's memory is taken only once one does */
+			if (map_file_index == NONE)
+			{
+				error(_error_silent, "no cache file can hold map '%s' (%08x bytes, type %d)",
+					cache_map_name, header.file_length, header.scenario_type);
+				if (copy_map)
+				{
+					display_error_damaged_media();
+				}
+
+				return FALSE;
+			}
+			buffer = texture_cache_steal_memory(buffer_size);
+			map_file = cached_map_file_get(map_file_index);
 
 			memset(
 				&map_file->header,
@@ -645,6 +709,10 @@ void cache_files_initialize(
 		"c:\\halo\\SOURCE\\cache\\cache_files_windows.c",
 		188,
 		cache_file_globals.requests);
+	/* port: cache_file_open clears the requests before a map is read; a Halo
+	Custom Edition map is read without it, so they start out free
+	(port/linux/game/custom_edition_cache.c) */
+	memset(cache_file_globals.requests, 0, MAXIMUM_SIMULTANEOUS_CACHE_REQUESTS * sizeof(struct cache_file_request));
 	cache_file_windows_thread_create();
 	cache_files_verify_language();
 	cache_files_open_cache_files();
@@ -757,6 +825,14 @@ boolean cache_file_open(
 		"c:\\halo\\SOURCE\\cache\\cache_files_windows.c",
 		224,
 		map_file_index!=NONE);
+	/* port: a map in no cache file is not opened (its index would be
+	NONE's, before the cache files) */
+	if (map_file_index == NONE)
+	{
+		error(_error_silent, "the map '%s' is in no cache file", scenario_name);
+
+		return FALSE;
+	}
 	memset(
 		cache_file_globals.requests,
 		0,
@@ -781,6 +857,15 @@ short cache_file_read(
 	short request_index = cache_request_next_free_index();
 	struct cache_file_request *request = cache_request_get(request_index);
 
+	/* port: the reads of a Halo Custom Edition map are served in place, at
+	once; the request stays free (port/linux/game/custom_edition_cache.c) */
+	if (custom_edition_cache_tags_loaded())
+	{
+		custom_edition_cache_read(tag_index, offset, size, buffer);
+		*completion_flag_reference = TRUE;
+
+		return request_index;
+	}
 	match_assert(
 		"c:\\halo\\SOURCE\\cache\\cache_files_windows.c",
 		269,
@@ -797,6 +882,16 @@ short cache_file_read(
 		"c:\\halo\\SOURCE\\cache\\cache_files_windows.c",
 		276,
 		offset>=0);
+	/* port: the offset and size are the map's (a texture's or sound's,
+	which nothing checks): a negative one is no read, failed at once (a
+	negative size read the file to its end over what follows the buffer) */
+	if (offset < 0 || size < 0)
+	{
+		error(_error_silent, "cache file read of %08x bytes at %08x refused", size, offset);
+		*completion_flag_reference = _cache_file_read_failed;
+
+		return NONE;
+	}
 	if (size & (CACHE_FILE_SECTOR_SIZE - 1))
 	{
 		size = (size | (CACHE_FILE_SECTOR_SIZE - 1)) + 1;
@@ -1056,7 +1151,13 @@ static void CALLBACK cache_file_read_io_completion_routine(
 		"c:\\halo\\SOURCE\\cache\\cache_files_windows.c",
 		1389,
 		finished_request->overlapped.hEvent);
-	*(volatile boolean *)finished_request->overlapped.hEvent = TRUE;
+	/* port: a read that failed or came up short completes as failed: what
+	waits on it stops waiting, and a caller that checks (the map's tags and
+	bsps) sees it, instead of taking what is in its buffer for the map */
+	*(volatile boolean *)finished_request->overlapped.hEvent =
+		error_code == ERROR_SUCCESS && bytes_transferred == (unsigned long)finished_request->size ?
+			TRUE :
+			_cache_file_read_failed;
 	finished_request->pending = FALSE;
 	finished_request->running = FALSE;
 
@@ -1148,7 +1249,20 @@ static void cache_file_get_map_path(
 	const char *map_name,
 	char *path)
 {
-	sprintf(path, "%s%s.map", cache_files_map_directory(), map_name);
+	/* port: no more than the callers' paths hold (256; the name can be a
+	host's, over the network). One that doesn't fit is no path (no file is
+	found), not a cut one (another file could be). */
+	enum
+	{
+		MAXIMUM_MAP_PATH_LENGTH = 256,
+	};
+	int length = snprintf(path, MAXIMUM_MAP_PATH_LENGTH, "%s%s.map", cache_files_map_directory(), map_name);
+
+	if (length < 0 || length >= MAXIMUM_MAP_PATH_LENGTH)
+	{
+		error(_error_silent, "map path for '%.64s' is too long", map_name);
+		path[0] = 0;
+	}
 
 	return;
 }
@@ -1222,9 +1336,11 @@ static short cached_map_files_find_free_map(
 		 * arm's assertion failure calls system_exit, which does not return in January
 		 * (0x47c960 jumps to halt_and_catch_fire 0x4f21c0, which loops or calls exit).
 		 * Source-policy approval pending (2026-09-27 audit). */
+		/* port: the type is the map's header's, and a release build's assertion
+		goes on: a type no cache file is for finds none */
 		default:
 			match_vassert("c:\\halo\\SOURCE\\cache\\cache_files_windows.c", 1172, FALSE, NULL);
-			break;
+			return NONE;
 	}
 
 	for (map_file_index = first_map_file_index;

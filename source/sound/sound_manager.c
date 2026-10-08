@@ -244,6 +244,12 @@ symbols in this file:
 #include <math.h>
 #include <stdio.h>
 
+/* port: a stereo channel's sound in the world panned towards it, muffled
+and reverberated as a 3D channel's is (sound_dsound_xbox.c; update_channels) */
+void dsound_port_set_channel_stereo_position(short virtual_channel_index, boolean positioned, real pan,
+	real distance, real minimum_distance, real distance_fade, real occlusion, real obstruction,
+	boolean attenuate_direct_path);
+
 /* ---------- constants */
 
 enum
@@ -1451,6 +1457,27 @@ static long looping_sound_new(
 			looping_sound->component_sound_count = 0;
 			looping_sound->ordered_sounds_finished = FALSE;
 
+			/* port: no more tracks or details than the looping sound holds. A
+			tag with more is cut to that, and said once. */
+			if (definition->tracks.count > (long)NUMBEROF(looping_sound->tracks) ||
+				definition->details.count > (long)NUMBEROF(looping_sound->detail_play_times))
+			{
+				error(
+					_error_silent,
+					"looping sound %s has %d tracks and %d details (only %d and %d are played)",
+					tag_get_name(definition_index),
+					definition->tracks.count,
+					definition->details.count,
+					(long)NUMBEROF(looping_sound->tracks),
+					(long)NUMBEROF(looping_sound->detail_play_times));
+				definition->tracks.count = MIN(
+					definition->tracks.count,
+					(long)NUMBEROF(looping_sound->tracks));
+				definition->details.count = MIN(
+					definition->details.count,
+					(long)NUMBEROF(looping_sound->detail_play_times));
+			}
+
 			for (detail_index = 0;
 				detail_index < definition->details.count;
 				detail_index++)
@@ -2610,7 +2637,11 @@ boolean sound_refresh_looping(
 						&source->location.position);
 				}
 
-				for (track_index = 0; track_index < definition->tracks.count; track_index++)
+				/* port: no more tracks than the looping sound holds (the map's count) */
+				for (track_index = 0;
+					track_index < definition->tracks.count &&
+						track_index < (short)NUMBEROF(loop->tracks);
+					track_index++)
 				{
 					struct looping_sound_track *track = TAG_BLOCK_GET_ELEMENT(
 						&definition->tracks,
@@ -3040,7 +3071,10 @@ static void process_looping_sounds(
 		{
 			short detail_index;
 
-			for (detail_index = 0; detail_index < definition->details.count;
+			/* port: no more details than the looping sound holds (the map's count) */
+			for (detail_index = 0;
+				detail_index < definition->details.count &&
+					detail_index < (short)NUMBEROF(looping_sound->detail_play_times);
 				detail_index++)
 			{
 				struct looping_sound_detail *detail = TAG_BLOCK_GET_ELEMENT(
@@ -3463,10 +3497,21 @@ static void update_channels(
 			else
 			{
 				real_point3d relative_position = sound->source.location.position;
+				/* port: what a 3D channel is given of its sound's surroundings,
+				for a stereo one's (dsound_port_set_channel_stereo_position) */
+				real stereo_obstruction = 0.f;
+				real stereo_occlusion = 0.f;
+				boolean stereo_underwater = FALSE;
 
 				switch (sound->source.spatialization_mode)
 				{
 				case _sound_spatialization_mode_none:
+					/* port: (unpanned and dry: dsound_port_set_channel_stereo_position) */
+					if (TEST_FLAG(channel->type_flags, _sound_channel_stereo_bit))
+					{
+						dsound_port_set_channel_stereo_position(channel_index, FALSE, 0.f, 0.f, 0.f, 1.f,
+							0.f, 0.f, FALSE);
+					}
 					break;
 
 				case _sound_spatialization_mode_absolute:
@@ -3482,6 +3527,9 @@ static void update_channels(
 							&listener->matrix,
 							&sound->source.location.position,
 							&relative_position);
+						stereo_obstruction = sound->source.obstruction;
+						stereo_occlusion = sound->source.occlusion;
+						stereo_underwater = listener->underwater;
 					}
 					/* fall through */
 
@@ -3500,8 +3548,42 @@ static void update_channels(
 						real attenuation = 1.f -
 							(distance - minimum_distance) /
 							(maximum_distance - minimum_distance);
+						real distance_fade = PIN(attenuation, 0.f, 1.f);
 
-						fade *= PIN(attenuation, 0.f, 1.f);
+						/* port: positioned stereo uses a 2D stream, so it misses
+						the 3D stream's inverse-distance gain: it takes that
+						instead of the linear fade (the listener's rolloff
+						factor is 1), so that it fades as a mono sound does. A
+						3D sound is not cut off at the tag's maximum distance
+						either: none starts past it. */
+						if (TEST_FLAG(channel->type_flags, _sound_channel_stereo_bit))
+						{
+							distance_fade = minimum_distance > 0.f && distance > minimum_distance ?
+								minimum_distance / distance : 1.f;
+						}
+						fade *= distance_fade;
+						/* port: and a stereo sound is panned towards where it
+						is, as the mixer pans a 3D one (port/linux/src/dsound_sdl.c,
+						spatialize: ahead is x, right -y; centred when close),
+						and muffled and reverberated as one is, which the Xbox's
+						stereo channels never were: a Custom Edition map's stereo
+						gunfire came from nowhere. (Obstruction and occlusion go
+						where the 3D channels' call above puts them.) */
+						if (TEST_FLAG(channel->type_flags, _sound_channel_stereo_bit))
+						{
+							real horizontal = square_root(
+								relative_position.x * relative_position.x +
+								relative_position.y * relative_position.y);
+							real pan = horizontal > 1.0e-4f ? -relative_position.y / horizontal : 0.f;
+
+							if (distance < minimum_distance && minimum_distance > 0.f)
+							{
+								pan *= distance / minimum_distance;
+							}
+							dsound_port_set_channel_stereo_position(channel_index, TRUE, 0.75f * pan,
+								distance, minimum_distance, distance_fade,
+								stereo_obstruction, stereo_occlusion, stereo_underwater);
+						}
 					}
 					break;
 

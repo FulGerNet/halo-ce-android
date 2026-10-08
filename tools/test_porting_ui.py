@@ -56,7 +56,7 @@ struct tag_reference {long index;};
 struct tag_block {long count; void *address;};
 struct ui_widget_search_and_replace_reference {char search_string[32]; short replace_function;};
 struct ui_widget_definition {
- struct tag_reference text_label_string_list,text_font;
+ struct tag_reference text_label_string_list,text_font,background_bitmap;
  struct tag_block search_and_replace_functions;
  rectangle2d bounds; short horizontal_offset,vertical_offset,string_list_index,justification;
  word text_box_flags; real_argb_color text_color;
@@ -73,6 +73,10 @@ static struct ui_widget_definition template;
 static struct halo_porting_menu ui_porting_menu;
 static int ui_porting_context,ui_porting_count,ui_porting_revision;
 static int ui_porting_scroll,ui_porting_scroll_max;
+static int ui_porting_slider_action;
+static rectangle2d ui_porting_slider_bounds, ui_porting_credit_bounds;
+static boolean ui_porting_credit_visible, ui_porting_main_focus;
+int ui_mouse_widget_has_focus(struct widget_instance *widget){return 0;}
 #define UI_PORTING_TOP 112
 #define UI_PORTING_BOTTOM 404
 #define UI_PORTING_SCROLL_LEFT 590
@@ -100,7 +104,10 @@ static void *widget_memory_pool;
 static int glyphs,percent,draw_percent,background_fixture,background_drawn;
 static real_argb_color current_color;
 static rectangle2d background_bounds;
-struct bitmap_data {int unused;};
+struct bitmap_data {int width;};
+int ui_widget_port_text_wrap(wchar_t *s,rectangle2d *b,short w){return 1;}
+void draw_unicode_string_compute_bounds(rectangle2d *b,wchar_t *s,rectangle2d *t,rectangle2d *c){*t=*b;*c=*b;}
+wchar_t *ustrncpy(wchar_t *d,wchar_t const *s,unsigned long n){unsigned long i=0;while(i<n&&s[i]){d[i]=s[i];++i;}return d;}
 static struct bitmap_data blue;
 void *memcpy(void *d,const void *s,unsigned long n) {char *a=d;const char*b=s;while(n--)*a++=*b++;return d;}
 unsigned long ustrlen(wchar_t const*s){unsigned long n=0;while(s[n])++n;return n;}
@@ -157,7 +164,7 @@ int run_tests(void){
  template.text_color.alpha=0;style.parent=&parent;style.alpha_modifier=0;style.visible=0;
  ui_porting_context=1;ui_porting_menu.page=0;glyphs=0;draw_percent=100;
  ui_porting_text(&style,"Porting options",row,&clip,TRUE,FALSE);
- if(glyphs!=15||current_color.alpha!=1||percent!=100||last_justification!=2)return 1;
+ if(glyphs!=15||current_color.alpha!=0.6f||percent!=100||last_justification!=2)return 1;
  if(draw_percent!=100||current_color.red!=0||current_color.green!=128.f/255.f||current_color.blue!=1)return 14;
  /* The old Quit row is replaced at exactly its native bounds, without an extra row. */
  fixture.definition_tag_index=99;fixture.parent=&parent;
@@ -206,6 +213,18 @@ int run_tests(void){
  if(ui_porting_scroll!=0||last_action)return 12;
  pointer.scroll_drag=0;pointer.scroll_pixels=-32767;ui_porting_pointer(&pointer);
  if(ui_porting_scroll!=0)return 13;
+ ui_porting_menu.page=4;ui_porting_menu.count=2;ui_porting_scroll=ui_porting_scroll_max=0;
+ ui_porting_menu.rows[0].action=40;ui_porting_menu.rows[0].value=467;
+ memcpy(ui_porting_menu.rows[0].text,"Look sensitivity",17);
+ ui_porting_render(&fixture,&clip);
+ pointer=(struct halo_ui_pointer){0};pointer.left_clicks=1;pointer.click_x=70;pointer.click_y=150;
+ ui_porting_pointer(&pointer);if(last_action!=40||last_value!=0)return 18;
+ ++ui_porting_menu.revision;pointer.scroll_drag=1;pointer.x=640;pointer.y=20;
+ ui_porting_pointer(&pointer);if(last_value!=1000)return 19;
+ pointer.x=0;ui_porting_pointer(&pointer);if(last_value!=0)return 20;
+ ui_porting_context=1;ui_porting_menu.page=0;ui_porting_main_focus=TRUE;glyphs=0;
+ ui_porting_text(&style,"Porting options",row,&clip,TRUE,FALSE);
+ if(glyphs!=30||current_color.red!=1||current_color.blue!=1||current_color.alpha!=1)return 21;
  return 0;
 }
 '''

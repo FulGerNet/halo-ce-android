@@ -25,7 +25,7 @@ surely). titles.json records where each letter went, which
 tools/title_font.py's spacing is measured from.
 
 The pictures are drawn in place of the maps' bitmaps as the high-res HUD's
-are (port/linux/src/hud_hires.c), and only for the bitmaps of the English
+are (port/shared/src/hud_hires.c), and only for the bitmaps of the English
 maps (their CRC), which these texts are. Writes titles.json, which
 tools/embed_assets.py embeds with them. Needs Pillow, NumPy and SciPy.
 """

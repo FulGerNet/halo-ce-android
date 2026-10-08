@@ -89,10 +89,10 @@ code += r'''
   check(t.scroll>0 && t.pointerClicks==0,"Scrolling must not activate a row on release");
   t.menuPage=4;t.pointerClicks=0;
   t.event(0,320,220);t.event(2,340,220);t.revision++;t.event(2,380,220);t.event(1,380,220);
-  check(t.pointerClicks==2,"Value slider must continue dragging across acknowledgement revisions");
+  check(t.pointerClicks==4,"Value slider must continue dragging across acknowledgement revisions");
   t.menuPage=13;t.pointerClicks=0;
   t.event(0,320,220);t.event(2,340,220);t.revision++;t.event(2,380,220);t.event(1,380,220);
-  check(t.pointerClicks==2,"FOV slider must support continuous drag");
+  check(t.pointerClicks==4,"FOV slider must support continuous drag");
   t.menuPage=6;t.pointerClicks=0;
   t.event(0,320,220);t.revision++;t.event(1,320,220);
   check(t.pointerClicks==0,"Stale tap must not select a different page");

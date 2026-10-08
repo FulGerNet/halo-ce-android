@@ -145,8 +145,8 @@ public final class TouchControls extends View implements SensorEventListener {
                     layout.restore(i, preferences.getFloat("x"+i, layout.x(i)),
                                       preferences.getFloat("y"+i, layout.y(i)));
         }
-        sensitivity = preferences.getFloat("look-sensitivity", sensitivity > 0 ? sensitivity : 1f);
-        if (!Float.isFinite(sensitivity) || sensitivity < 0.25f || sensitivity > 4f) sensitivity = 1f;
+        sensitivity = preferences.getFloat("look-sensitivity", sensitivity > 0 ? sensitivity : 2f);
+        if (!Float.isFinite(sensitivity) || sensitivity < 0.25f || sensitivity > 4f) sensitivity = 2f;
         setFocusable(false);
         setContentDescription("Halo touch controller");
         setOnApplyWindowInsetsListener((view, insets) -> {
@@ -320,12 +320,14 @@ public final class TouchControls extends View implements SensorEventListener {
             menuPointer = id; menuGestureRevision = revision; menuGesturePage = menuPage;
             menuStartX = event.getX(index); menuStartY = menuLastY = event.getY(index);
             menuScrolled = false;
+            if (menuPage == 4 || menuPage == 5 || menuPage == 12 || menuPage == 13)
+                nativeMenuPointer(menuStartX/getWidth(), menuStartY/getHeight(), true, false, 0, false);
         } else if (action == MotionEvent.ACTION_MOVE && menuPointer >= 0) {
             int p = event.findPointerIndex(menuPointer);
             if (p < 0 || menuGesturePage != menuPage) return true;
             float px = event.getX(p), py = event.getY(p);
             if (menuPage == 4 || menuPage == 5 || menuPage == 12 || menuPage == 13) {
-                nativeMenuPointer(px/getWidth(), py/getHeight(), true, false, 0, false);
+                nativeMenuPointer(px/getWidth(), py/getHeight(), true, false, 0, true);
                 menuScrolled = true;
             } else if (menuPage != 0) {
                 boolean scrollbar = menuStartX/getWidth() > 0.72f;
@@ -337,6 +339,8 @@ public final class TouchControls extends View implements SensorEventListener {
             }
             menuLastY = py;
         } else if ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) && id == menuPointer) {
+            if (menuScrolled && (menuPage == 4 || menuPage == 5 || menuPage == 12 || menuPage == 13))
+                nativeMenuPointer(event.getX(index)/getWidth(), event.getY(index)/getHeight(), true, false, 0, true);
             if (!menuScrolled && menuGestureRevision == revision) {
                 nativeMenuPointer(event.getX(index)/getWidth(), event.getY(index)/getHeight(), true, false, 0, false);
                 performClick();
@@ -458,6 +462,9 @@ public final class TouchControls extends View implements SensorEventListener {
             menuPage = 7;
         } else if (action >= 1000) {
             selectedControl = action-1000; menuPage = menuPage == 8 ? 12 : 9;
+        } else if (action == 91) {
+            openCreator();
+            return;
         } else if (action == 90) {
             if (menuPage == 1) menuPage = 0;
             else if (menuPage == 2 || menuPage == 3 || menuPage == 6) menuPage = 1;
@@ -488,6 +495,15 @@ public final class TouchControls extends View implements SensorEventListener {
             layout.setSize(selectedControl, 0.5f+Math.max(0, Math.min(1000, value))*1.5f/1000); saveLayout();
         } else { menuPage = action; }
         revision++; publishMenu(); invalidate();
+    }
+
+    private void openCreator() {
+            try {
+                getContext().startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
+                    android.net.Uri.parse("https://www.youtube.com/@fulger.a")));
+            } catch (android.content.ActivityNotFoundException e) {
+                Toast.makeText(getContext(), "No browser available", Toast.LENGTH_SHORT).show();
+            }
     }
 
     private void publishMenu() {

@@ -72,8 +72,18 @@ void host_porting_menu_read(struct halo_porting_menu *menu)
 void host_porting_action(int revision, int action, int value)
 {
     pthread_mutex_lock(&touch_lock);
-    if (!ui_action && revision == porting_menu.revision) {
-        ui_action = action; ui_value = value; ui_revision = revision;
+    int slider = action >= 40 && action <= 43;
+    int valid_slider = 0;
+    if (slider && porting_menu.page) {
+        for (int i = 0; i < porting_menu.count; ++i)
+            if (porting_menu.rows[i].action == action && porting_menu.rows[i].value >= 0)
+                valid_slider = 1;
+    }
+    /* A slider owns its gesture across value acknowledgements. Keep the
+       newest position, while still checking it belongs to the current page. */
+    if ((!ui_action || (valid_slider && ui_action == action)) &&
+        (revision == porting_menu.revision || valid_slider)) {
+        ui_action = action; ui_value = value; ui_revision = porting_menu.revision;
     }
     pthread_mutex_unlock(&touch_lock);
 }

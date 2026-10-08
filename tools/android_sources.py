@@ -93,3 +93,14 @@ def profile_use_flags(profile: Any) -> List[str]:
 def _quote(path: Any) -> str:
     text = str(path).replace(os.sep, "/")
     return f'"{text}"' if " " in text else text
+
+
+def updater_defines(release: bool) -> str:
+    """the self-updater's build (port/shared/src/updater.c): its number, from
+    HALO_BUILD_NUMBER (tools/ci_build.py gives it for builds of main; none
+    elsewhere, which never look for updates), and its configuration"""
+    number = os.environ.get("HALO_BUILD_NUMBER", "0")
+    if not number.isdigit():
+        number = "0"
+    flavor = "release" if release else "debug"
+    return f'-DHALO_BUILD_NUMBER={number} -DHALO_BUILD_FLAVOR=\\"{flavor}\\"'

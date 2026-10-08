@@ -29,7 +29,7 @@ def main():
     # gains commits. Owners may override this for manually published releases.
     if os.environ.get("GITHUB_ACTIONS") == "true":
         number = os.environ.get("HALO_BUILD_NUMBER", "")
-        if not number:
+        if not number.strip().isdigit():
             number = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=ROOT, text=True).strip()
         if not number.isdigit() or not 1 <= int(number) <= 2100000000:
             raise SystemExit("HALO_BUILD_NUMBER must be between 1 and 2100000000")

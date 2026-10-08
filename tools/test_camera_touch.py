@@ -58,10 +58,15 @@ int run_tests(void){
  pad.sticks[_gamepad_stick_left].y=16000;
  if(director_update_controls(0,&controls)||!d.debug_controls||!controls.active||look_calls!=1)return 3;
  if(controls.facing_delta.yaw!=-0.22f||controls.facing_delta.pitch!=0.11f||controls.position_delta.i<=0||!inhibited||!facing_inhibited)return 4;
+ director_update_controls(0,&controls);
+ if(!d.debug_controls||look_calls!=2)return 9;
+ if(controls.position_delta.i<0.06f||controls.position_delta.i>0.07f)return 11;
+ pad.buttons[_gamepad_binary_button_right_thumb]=5;director_update_controls(0,&controls);
+ if(!d.debug_controls||look_calls!=3)return 10;
  pad.buttons[_gamepad_binary_button_right_thumb]=0;director_update_controls(0,&controls);
- if(look_calls!=2||!d.debug_controls)return 5;
+ if(look_calls!=4||!d.debug_controls)return 5;
  pad.buttons[_gamepad_binary_button_right_thumb]=1;director_update_controls(0,&controls);
- if(look_calls!=2||d.debug_controls||controls.active)return 6;
+ if(look_calls!=4||d.debug_controls||controls.active)return 6;
  pad.buttons[_gamepad_binary_button_right_thumb]=0;pad.buttons[_gamepad_analog_button_black]=30;
  if(!director_update_controls(0,&controls)||director_update_controls(0,&controls))return 7;
  pending=1;if(!director_update_controls(0,&controls)||director_update_controls(0,&controls))return 8;

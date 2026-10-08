@@ -22,6 +22,14 @@ enum cached_map_file_precache_state
 	NUMBER_OF_CACHED_MAP_FILE_PRECACHE_STATES,
 };
 
+/* port: what a read's completion flag is set to when the read failed or came
+up short (cache_file_read): not FALSE, so whatever waits on it stops
+waiting, but not TRUE either, so a caller that checks can tell */
+enum
+{
+	_cache_file_read_failed = 2,
+};
+
 /* ---------- macros */
 
 /* ---------- structures */
@@ -37,8 +45,10 @@ struct cache_file_structure_bsp_header;
 struct tag_iterator
 {
 	byte reserved0[4];
-	short absolute_index;
-	byte reserved6[10];
+	/* port: a long, as the tags' count is (a short wrapped on a count past
+	0x7FFF, and the walk never ended); the struct keeps its size */
+	long absolute_index;
+	byte reserved8[8];
 	long group_tag;
 };
 
@@ -63,6 +73,11 @@ boolean cache_files_map_plays_multiplayer(
 void cache_files_show_multiplayer_unavailable(
 	char const *map_name,
 	char const *build);
+unsigned long cache_files_map_version(
+	char const *map_name);
+boolean cache_files_map_present(
+	char const *map_name,
+	unsigned long version);
 
 unsigned long cache_files_get_checksum(
 	void);
@@ -170,6 +185,9 @@ short cache_file_read(
 	boolean blocking);
 
 unsigned long tag_get_group_tag(long tag_index);
+/* port: whether size bytes at address lie in the tag cache the loaded map's
+tags are in: this build's, or a Custom Edition map's own */
+boolean cache_file_tag_cache_contains(void const *address, long size);
 
 /* ---------- prototypes/XBOX_TEXTURE_CACHE.C */
 

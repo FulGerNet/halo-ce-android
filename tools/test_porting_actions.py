@@ -30,7 +30,7 @@ public class PortingActionsTest {
  static class Device {boolean hasVibrator(){return true;}} Device vibrator=new Device(),gyroscope=new Device();
  static class Toast {static final int LENGTH_SHORT=0,LENGTH_LONG=1;
   static Toast makeText(Object c,String s,int l){throw new AssertionError(s);}void show(){}}
- Object getContext(){return this;}void reset(){}void updateSensors(){}void cancelRumble(){}void invalidate(){}
+ void openCreator(){} Object getContext(){return this;}void reset(){}void updateSensors(){}void cancelRumble(){}void invalidate(){}
  boolean saveLayout(){return true;}String controlName(int i){return "Button "+i;}
  int nativeCheatStatus(int id){return lastStatus;}
  boolean nativeCheatRequest(int id,boolean enabled){requestCount++;lastCheat=id;lastStatus=enabled?1:0;return true;}

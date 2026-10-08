@@ -61,7 +61,7 @@ symbols in this file:
 
 enum
 {
-	MAXIMUM_WIDGETS_PER_MAP = 64
+	MAXIMUM_WIDGETS_PER_MAP = HALO_PORT_MAXIMUM_WIDGETS
 };
 
 /* ---------- macros */
@@ -102,7 +102,9 @@ static struct widget_type_definition data_0030b2b0[NUMBER_OF_WIDGET_TYPES] =
 		antennas_dispose,
 		antenna_new,
 		antenna_delete,
-		antennas_update,
+		/* the chain simulates at the Xbox's own rate, an update a tick, so
+		the tick steps it rather than the frame (game.c; antenna.c) */
+		NULL,
 		antenna_render
 	},
 	{

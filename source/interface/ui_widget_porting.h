@@ -5,6 +5,9 @@ static struct halo_porting_menu ui_porting_menu;
 static rectangle2d ui_porting_bounds[HALO_PORTING_ROWS];
 static int ui_porting_actions[HALO_PORTING_ROWS];
 static int ui_porting_count, ui_porting_revision, ui_porting_context;
+static int ui_porting_slider_action;
+static rectangle2d ui_porting_slider_bounds, ui_porting_credit_bounds;
+static boolean ui_porting_credit_visible, ui_porting_main_focus;
 static int ui_porting_scroll, ui_porting_scroll_max, ui_porting_last_page;
 #define UI_PORTING_TOP 112
 #define UI_PORTING_BOTTOM 404
@@ -69,6 +72,7 @@ static void ui_porting_prepare(void)
     if (context != ui_porting_context) ui_porting_count = 0;
     ui_porting_context = context;
     if (ui_porting_menu.page != ui_porting_last_page || !context) {
+        ui_porting_slider_action = 0;
         ui_porting_scroll = ui_porting_scroll_max = 0;
         ui_porting_last_page = ui_porting_menu.page;
     }
@@ -121,6 +125,19 @@ static boolean ui_porting_pointer(struct halo_ui_pointer *pointer)
 {
     int i;
     if (!ui_porting_context) return FALSE;
+    if (!ui_porting_menu.page && ui_porting_context == 1 && ui_porting_credit_visible && pointer->left_clicks &&
+        pointer->click_x >= ui_porting_credit_bounds.x0 && pointer->click_x < ui_porting_credit_bounds.x1 &&
+        pointer->click_y >= ui_porting_credit_bounds.y0 && pointer->click_y < ui_porting_credit_bounds.y1) {
+        host_porting_action(ui_porting_menu.revision, 91, 0);
+        return TRUE;
+    }
+    if (ui_porting_menu.page && pointer->scroll_drag && ui_porting_slider_action) {
+        int value = PIN((pointer->x-ui_porting_slider_bounds.x0)*1000 /
+            MAX(1, ui_porting_slider_bounds.x1-ui_porting_slider_bounds.x0-1), 0, 1000);
+        host_porting_action(ui_porting_menu.revision, ui_porting_slider_action, value);
+        return TRUE;
+    }
+    if (pointer->left_clicks && !pointer->scroll_drag) ui_porting_slider_action = 0;
     if (ui_porting_menu.page && ui_porting_scroll_max) {
         if ((pointer->scroll_drag || pointer->left_clicks) &&
             pointer->x >= UI_PORTING_SCROLL_LEFT && pointer->x < UI_PORTING_SCROLL_RIGHT &&
@@ -146,7 +163,11 @@ static boolean ui_porting_pointer(struct halo_ui_pointer *pointer)
             rectangle2d *b = &ui_porting_bounds[i];
             if (pointer->click_x >= b->x0 && pointer->click_x < b->x1 &&
                 pointer->click_y >= b->y0 && pointer->click_y < b->y1) {
-                int value = PIN((pointer->click_x-b->x0)*1000 / MAX(1, b->x1-b->x0), 0, 1000);
+                int value = PIN((pointer->click_x-b->x0)*1000 / MAX(1, b->x1-b->x0-1), 0, 1000);
+                if (ui_porting_actions[i] >= 40 && ui_porting_actions[i] <= 43) {
+                    ui_porting_slider_action = ui_porting_actions[i];
+                    ui_porting_slider_bounds = *b;
+                }
                 if (ui_porting_actions[i]) {
                     host_porting_action(ui_porting_revision, ui_porting_actions[i], value);
                     ui_play_audio_feedback_sound(_ui_audio_feedback_cursor);
@@ -180,6 +201,7 @@ static void ui_porting_text(struct widget_instance *style, char const *text, rec
     definition.text_color.green = 0.94f;
     definition.text_color.blue = 1.0f;
     if (!ui_porting_menu.page && ui_porting_context == 1) {
+        definition.text_color.alpha = ui_porting_main_focus ? 1.0f : 0.6f;
         definition.text_color.red = 0.0f;
         definition.text_color.green = 128.0f/255.0f;
         definition.text_color.blue = 1.0f;
@@ -215,6 +237,11 @@ static void ui_porting_text(struct widget_instance *style, char const *text, rec
     scaled_clip.y0 = bounds.y0+(clip->y0-bounds.y0)*100/percent;
     scaled_clip.y1 = bounds.y0+(clip->y1-bounds.y0)*100/percent;
     rasterizer_text_set_ui_scale(bounds.x0, bounds.y0, percent);
+    if (!ui_porting_menu.page && ui_porting_context == 1 && ui_porting_main_focus) {
+        point2d shadow = {2, 2};
+        widget_instance_render_text_box(&instance, &definition, &scaled_clip, shadow, FALSE);
+        definition.text_color.red = definition.text_color.green = definition.text_color.blue = 1.0f;
+    }
     widget_instance_render_text_box(&instance, &definition, &scaled_clip, offset, FALSE);
     rasterizer_text_set_ui_scale(0, 0, 100);
 }
@@ -244,6 +271,7 @@ static void ui_porting_render(struct widget_instance *root, rectangle2d *clip)
     rectangle2d row, viewport = *clip;
     int count, i, top = 0, left = 0, right = 0, step = 60;
     ui_porting_count = 0;
+    ui_porting_main_focus = FALSE;
     if (!ui_porting_context || ui_porting_menu.editing || root != ui_mouse_menu()) return;
     style = ui_porting_find_style(root);
     if (!style) return;
@@ -267,6 +295,7 @@ static void ui_porting_render(struct widget_instance *root, rectangle2d *clip)
         if (replacement) {
             left = replacement->bounds.x0; right = replacement->bounds.x1;
             top = replacement->bounds.y0; step = replacement->bounds.y1-top;
+            ui_porting_main_focus = ui_mouse_widget_has_focus(replacement->widget);
             style = ui_porting_find_text(replacement->widget);
             if (!style) style = ui_porting_find_style(root);
         }

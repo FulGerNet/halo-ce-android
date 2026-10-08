@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes the PC version's menus (Halo Custom Edition's) as the port's menu
-files (port/assets/menus/ce, read by port/linux/src/menu_files.c):
+files (port/assets/menus/ce, read by port/shared/src/menu_files.c):
 
     python tools/ce_menus.py --tags .../halopc-restored/tags \\
         --definitions .../invader/src/tag/hek/definition \\
@@ -27,7 +27,7 @@ be redrawn.
 
 What this engine (the Xbox's) has no use for is written but never runs: the
 PC version's mouse events (the port's own mouse support clicks with A), and
-its own functions (port/linux/game/menu_functions.c, most of which do
+its own functions (port/shared/game/menu_functions.c, most of which do
 nothing yet). Its gamespy and ticker fonts are drawn with small_ui, which
 the Xbox's map has.
 
@@ -83,6 +83,11 @@ CHILD_OFFSETS = {
     **{("ui\\shell\\main_menu\\multiplayer_type_select\\join_game\\join_game_items_list",
         f"ui\\shell\\main_menu\\multiplayer_type_select\\join_game\\server_item_{row}"): (10, 102 + 17 * (row - 1))
        for row in range(1, 16)},
+    # the map lists' first row, the SINGLEPLAYER or MULTIPLAYER chooser
+    # (port_settings.MAP_KIND_CHOOSER), where the gametype list has its own
+    **{(f"ui\\shell\\main_menu\\{list_tag}", "ui\\shell\\main_menu\\new_select\\list_item_0"): (82, 73)
+       for list_tag in ("multiplayer_type_select\\mp_map_select\\mp_map_select_list_2",
+                        "solo_level_select\\solo_level_select_list")},
 }
 SCALE = 4
 MAXIMUM_SIZE = 2048
@@ -148,7 +153,7 @@ WIRED = {
     "load game menu init", "load game menu dispose", "load game menu activated", "load game list update",
     "load game menu delete request", "load game menu delete finish",
     "controls screen init", "controls begin binding", "controls screen change set", "controls screen defaults",
-    "controls update menu", "profile manager select", "direct ip connect go",
+    "controls update menu", "profile manager select", "direct ip connect go", "ss edit server password",
 }
 
 # ---------- HEK tags
@@ -286,6 +291,7 @@ class Art:
         self.placeholder = Image.open(placeholder).convert("RGBA")
         self.pictures = []  # (frame, size, PC picture) of the frames drawn as the placeholder
         self.xbox_frames = []  # (PC frame, Xbox bitmap, its frame) drawn from the Xbox map
+        self.added_frames = []  # (our bitmap, Xbox bitmap, its frame): port_settings.BITMAP_FRAMES
         self.svgs = []
         self.pngs = []
 
@@ -360,6 +366,10 @@ class Art:
             self.draw(relative, index, len(data), width, height, MENUS / png, self.shown.get(tag, []))
             self.pngs.append(png)
             lines.append(f"\t\t<frame{attributes([('png', png), ('width', width), ('height', height)])}/>")
+        # (the port's frames after them: the Xbox map's, scaled)
+        for source, index, width, height, x, y in port_settings.BITMAP_FRAMES.get(our_name(tag), []):
+            self.added_frames.append((our_name(tag), source, index))
+            lines.append(f"\t\t<frame{attributes([('map', source), ('index', index), ('width', width), ('height', height), ('x', x or None), ('y', y or None)])}/>")
         lines.append("\t</bitmap>")
         return "\n".join(lines)
 
@@ -472,6 +482,7 @@ def widget_xml(tag: str, widget: dict, tags: Tags, functions: list, inputs: list
     for data in widget["game data inputs"]:
         name = inputs[data["function"]]
         lines.append(f"{inner}<data{attributes([('input', f'unwired {name}' if name in INCOMPATIBLE else name)])}/>")
+    lines += [f"{inner}<data{attributes([('input', name)])}/>" for name in patch.get("inputs", [])]
     lines += [f"{inner}{line}" for line in patch.get("handlers", [])]
     for handler in widget["event handlers"] if "handlers" not in patch else []:
         flags = handler["flags"]
@@ -547,7 +558,7 @@ def main() -> None:
     inputs = tags.options("UIGameDataInputReferenceFunction")
     functions[:102] = engine_names(ROOT / "source/interface/ui_widget_event_handler_functions.c",
                                    '\t{\n\t\t"NULL",', 102)
-    inputs[:41] = engine_names(ROOT / "port/linux/game/menu_tags.c", "game_data_input_names[] =", 41)
+    inputs[:41] = engine_names(ROOT / "port/shared/game/menu_tags.c", "game_data_input_names[] =", 41)
     for folder in (CE, SVG_COPIES, MENUS / "port_svg"):
         if folder.exists():
             shutil.rmtree(folder)
@@ -648,6 +659,15 @@ def main() -> None:
     report += [f"| `{name}.png` | `{tag}` frame {index} |" for name, tag, index in sorted(art.xbox_frames)]
     report += [
         "",
+        "These frames are added after a bitmap's, drawn scaled from the Xbox map's (the profile settings'",
+        "picture of Gamepad Setup: the Xbox's Controller Setup's pictures of the button settings).",
+        "",
+        "| Our bitmap | The Xbox's frame |",
+        "| --- | --- |",
+    ]
+    report += [f"| `{name}` | `{tag}` frame {index} |" for name, tag, index in art.added_frames]
+    report += [
+        "",
         "## Placeholders, to be redrawn",
         "",
         "The Xbox's map has none of these (or other pictures under the name), so each frame is a placeholder",
@@ -674,7 +694,7 @@ def main() -> None:
         "# Menu functions that are not wired yet",
         "",
         "The PC version's menus (`ce/`, from `tools/ce_menus.py`) run functions of the game's. These do nothing",
-        "yet (`port/linux/game/menu_functions.c`), so what they fill in (lists, values) is empty, and what they",
+        "yet (`port/shared/game/menu_functions.c`), so what they fill in (lists, values) is empty, and what they",
         "do (save a setting, join a game) does not happen; the screens open and close as the PC version's.",
         "",
         "- The PC version's own functions, which the Xbox's game has not.",
