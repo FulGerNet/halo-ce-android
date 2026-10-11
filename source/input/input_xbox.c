@@ -388,7 +388,7 @@ void update_ticks(
 }
 
 /* The native builds read input once a frame and draw several frames per
-30 Hz tick (port/shared/game/render_interpolation.c), so counting frames would
+30 Hz tick (port/linux/game/render_interpolation.c), so counting frames would
 make a held button count up as many times too fast: reload would turn into a
 weapon swap after a few milliseconds. The count is 1 on the frame the button
 goes down, as before, and from then on the ticks it has been held, at least

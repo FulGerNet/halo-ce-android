@@ -284,7 +284,7 @@ static void weather_particle_system_box_offset_from_point3d(
 	real_point3d const *point,
 	real_point3d *offset);
 /* A frame was a tick on the Xbox; the native builds draw several frames per
-tick (port/shared/game/render_interpolation.c). Weather particles turn their
+tick (port/linux/game/render_interpolation.c). Weather particles turn their
 acceleration and drift once an update: turn once per 30 Hz tick, and drift by
 the frame's share of a tick. This is the ticks the current update crosses. */
 static long weather_particle_update_ticks = 1;

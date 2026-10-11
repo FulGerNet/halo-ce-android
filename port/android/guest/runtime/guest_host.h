@@ -38,7 +38,7 @@ void host_set_tp(unsigned int thread);
 __guest_thread_start(thread); returns 0 or an errno value */
 int host_thread_create(unsigned int thread, unsigned int stack_size);
 
-/* ---------- memory write tracking (port/shared/src/memory_watch.c) */
+/* ---------- memory write tracking (port/linux/src/memory_watch.c) */
 
 void host_memory_watch_initialize(void);
 void host_memory_watch_protect(unsigned int address, unsigned int size);
@@ -128,13 +128,13 @@ void host_gl_wait_frame(unsigned int slot);
 void host_android_path(int which, char *buffer, unsigned int size);
 
 #ifdef HALO_ANDROID
-#include "../../../shared/include/halo_porting_ui.h"
+#include "../../../linux/include/halo_porting_ui.h"
 #endif
 /* the edges where Android keeps its gestures, as left, top, right, bottom
 in pixels of the current orientation, into insets[4]; all 0 when unknown */
 void host_gesture_insets(int *insets);
-/* upstream's touch controls (port/shared/src/touch_input.c) report these; this
-fork's overlay follows the menus through host_touch_ui_context instead */
+/* the touch controls of port/linux/src/touch_input.c report these; the app's
+overlay follows the menus through host_touch_ui_context instead */
 void host_touch_scene(int scene);
 void host_touch_bindings(const int *controls);
 

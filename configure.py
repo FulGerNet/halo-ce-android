@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# Root build script: writes build.ninja for Android.
+# root build script: writes build.ninja for the native ports (Linux, Windows,
+# Android) and the web port
 
 import argparse
 import io
@@ -11,10 +12,17 @@ from types import SimpleNamespace
 
 from tools import ninja_syntax
 from tools.android_build import android_configure_inputs, generate_android_build
-from tools.android_sources import check_profile_options
+from tools.linux_build import check_profile_options, generate_linux_build, linux_configure_inputs
+from tools.web_build import generate_web_build, web_configure_inputs
+from tools.windows_build import generate_windows_build, windows_configure_inputs
 
 # arguments
 parser = argparse.ArgumentParser()
+parser.add_argument(
+    "--linux-cc",
+    metavar="BINARY",
+    help="compiler for the native Linux build, `ninja linux` (default: clang)",
+)
 parser.add_argument(
     "--compiler-launcher",
     metavar="BINARY",
@@ -24,18 +32,41 @@ parser.add_argument(
 parser.add_argument(
     "--release",
     action="store_true",
-    help="Android release build: assertions are not checked",
+    help="release builds (Linux, Windows, Android, web): assertions are not checked",
 )
 parser.add_argument(
     "--profile",
     action="store_true",
-    help="profiling build: CPU scopes recorded on a console command or launch setting",
+    help="profiling builds (Linux, Windows, Android): CPU scopes recorded on a "
+    "console command or launch setting (README, \"Profiling builds\"); not with --pgo=train",
+)
+parser.add_argument(
+    "--lto",
+    choices=["full", "thin", "off"],
+    default="full",
+    help="link-time optimisation (Linux, Windows): full (the default: the whole game "
+    "optimised as one module, the fastest code and the slowest links), thin (parallel and incremental) or off",
+)
+parser.add_argument(
+    "--portable",
+    action="store_true",
+    help="x86 builds (Linux, Windows): code for any x86-64 processor (SSE2) rather than for this "
+    "machine's (-march=native, the default); use it for builds that run on other computers. On Linux it also "
+    "builds against Debian 11's glibc 2.31 rather than this machine's, and brings its own SDL 3 (libSDL3.so.0, "
+    "beside the executable), so that it starts on SteamOS and older distributions: the first build downloads "
+    "the Debian packages and SDL's source (build/linux/third_party, tools/linux_sysroot.py), and needs CMake, "
+    "pkgconf and wayland-scanner, not the 32-bit SDL 3",
 )
 parser.add_argument(
     "--pgo",
+    nargs="?",
+    const="train",
     default="use",
-    choices=["use", "off"],
-    help="use the inherited optimization profile in pgo/ (clang 22+), or disable it",
+    choices=["use", "train", "off"],
+    help="profile-guided optimisation: use (the default) optimises with the profiles in pgo/, "
+    "train (or plain --pgo) first records this platform's profile if it is missing, by letting an instrumented "
+    "build play every campaign level (needs the game data in assets/ and a display; Linux and Windows), off does "
+    "without",
 )
 parser.add_argument(
     "--pgo-profile",
@@ -53,6 +84,11 @@ parser.add_argument(
     type=str,
     help="clang with the arm64_32 target for the Android guest (default: clang)",
 )
+parser.add_argument(
+    "--web-emcc",
+    type=str,
+    help="Emscripten's emcc for `ninja web` (default: emcc on the PATH, then EMSDK's or ~/emsdk's)",
+)
 args = parser.parse_args()
 try:
     check_profile_options(args.profile, args.pgo)
@@ -62,14 +98,22 @@ except ValueError as error:
 # the settings the builds read
 sln = SimpleNamespace(
     build_dir=Path("build"),
+    linux_cc=args.linux_cc,
     compiler_launcher=args.compiler_launcher,
     port_release=args.release,
     port_profile=args.profile,
+    port_lto=args.lto,
+    port_portable=args.portable,
     port_pgo=args.pgo,
     port_pgo_profile=args.pgo_profile,
     android_ndk=args.android_ndk,
     android_guest_cc=args.android_guest_cc,
+    web_emcc=args.web_emcc,
 )
+
+
+def is_windows() -> bool:
+    return os.name == "nt"
 
 
 # build.ninja
@@ -84,10 +128,13 @@ n.variable(
     "configure_args",
     [f'"{arg}"' if any(ch.isspace() for ch in arg) else arg for arg in sys.argv[1:]],
 )
-n.variable("python", f'"{Path(sys.executable).as_posix()}"')
+n.variable("python", f'"{sys.executable}"')
 n.newline()
 
+generate_linux_build(n, sln)
 generate_android_build(n, sln)
+generate_windows_build(n, sln)
+generate_web_build(n, sln)
 
 n.comment("Reconfigure on change")
 n.rule(
@@ -102,16 +149,20 @@ n.build(
     implicit=[
         configure_script,
         Path("tools/ninja_syntax.py"),
+        *linux_configure_inputs(),
         *android_configure_inputs(),
+        *windows_configure_inputs(),
+        *web_configure_inputs(),
     ],
 )
 n.newline()
 
-# Build the Android APK by default.
-if "\nbuild android_apk: " in out.getvalue():
-    n.default("android_apk")
-else:
-    raise SystemExit("Android build unavailable: install the NDK and check dependency downloads.")
+# the build for this computer, where it could be generated (the Windows
+# build is left out when SDL cannot be fetched, for instance)
+default = "windows" if is_windows() else "linux"
+if f"\nbuild {default}: " in out.getvalue():
+    n.comment("Default rule: the build for this computer")
+    n.default(default)
 
 with open("build.ninja", "w", encoding="utf-8") as f:
     f.write(out.getvalue())

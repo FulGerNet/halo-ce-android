@@ -104,12 +104,12 @@ void player_delete(
 /* ---------- constants */
 
 /* the machine and player slots of a network game: the Xbox's 4 and 16, or the
-native builds' session limits (port/shared/include/halo_port_limits.h) */
+native builds' session limits (port/linux/include/halo_port_limits.h) */
 #define NETWORK_GAME_MACHINE_SLOTS HALO_PORT_MAXIMUM_NETWORK_MACHINES
 #define NETWORK_GAME_PLAYER_SLOTS HALO_PORT_MAXIMUM_NETWORK_PLAYERS
 
 /* port: the distributed netcode names players by their datums' absolute
-indices (port/shared/game), which every machine must share: a machine that
+indices (port/linux/game), which every machine must share: a machine that
 joined the game in progress too, which has neither the players who left
 (their datums stay until the game ends) nor the order the others added
 players in. So there each player's datum is its slot in the host's player

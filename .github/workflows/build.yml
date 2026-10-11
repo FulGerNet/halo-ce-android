@@ -1,38 +1,114 @@
-name: Android build
+name: Build
 
+# Debug and release builds of the native ports (Linux, Windows, Android) and
+# the web port for every pushed commit, uploaded as artifacts.
+# tools/ci_build.py does each build; see it for the options.
+#
+# Kept cheap:
+# - one job per platform builds both configurations, so its set-up (tools,
+#   downloads, caches) is paid once;
+# - compiles go through ccache, whose cache carries over from run to run, so
+#   a commit only recompiles what it changed; downloads (SDL, musl, Gradle,
+#   the Linux build's system root) are cached too;
+# - a newer push to the same branch cancels a run still going;
+# - pushes that only change documentation do not build;
+# - Windows, whose minutes cost twice Linux's, builds only Windows;
+# - artifacts are kept for three days.
+#
+# A successful build of main is also published as a GitHub release, the
+# newest marked latest, so that
+# https://github.com/<repository>/releases/latest/download/<file> always
+# gives the latest build; the last five are kept. Its web build is then the
+# site on GitHub Pages (https://halocombatevolved.com/, port/web/README.md).
 on:
   push:
-    branches: [main]
     paths-ignore:
       - "**.md"
   workflow_dispatch:
     inputs:
-      build_number:
-        description: Optional Android version code for a manual release (blank uses commit count)
-        required: false
-        type: string
-  workflow_call:
-    inputs:
-      ref:
-        description: Exact tested sync candidate commit
-        required: true
-        type: string
+      profile:
+        description: "Also build the profiling flavour (configure.py --profile) on Linux"
+        type: boolean
+        default: false
 
 concurrency:
-  group: android-${{ github.workflow }}-${{ inputs.ref || github.sha }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
-  HALO_BUILD_NUMBER: ${{ inputs.build_number || '' }}
   CI_COMPILER_LAUNCHER: ccache
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   CCACHE_BASEDIR: ${{ github.workspace }}
   CCACHE_MAXSIZE: 1G
 
 jobs:
+  linux:
+    # Arch Linux has what the build needs as packages: clang 22 (for the
+    # profile-guided optimisation in pgo/), and CMake, pkg-config and
+    # wayland-scanner for the SDL 3 that the portable build brings. The build
+    # links against Debian 11's 32-bit glibc (tools/linux_sysroot.py), not
+    # Arch's, so that it starts on SteamOS and older distributions; Arch's
+    # 32-bit glibc is for the tests.
+    runs-on: ubuntu-24.04
+    container: archlinux:latest
+    timeout-minutes: 40
+    steps:
+      - name: Install the toolchain
+        run: |
+          printf '\n[multilib]\nInclude = /etc/pacman.d/mirrorlist\n' >> /etc/pacman.conf
+          pacman -Syu --noconfirm --needed git zstd python python-pytest ninja ccache \
+            clang lld gcc lib32-glibc lib32-gcc-libs cmake pkgconf wayland
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-linux-${{ github.sha }}
+          restore-keys: ccache-linux-
+
+      # the system root and SDL's source, which the build downloads
+      - uses: actions/cache@v4
+        with:
+          path: build/linux/third_party
+          key: linux-third-party-${{ hashFiles('tools/linux_sysroot.py') }}
+
+      - name: Debug
+        run: python tools/ci_build.py linux debug
+
+      # (the profiling build, configure.py --profile, which no other step
+      # compiles: only when a run started by hand asks for it, as it costs a
+      # build of its own)
+      - name: Profile
+        if: github.event_name == 'workflow_dispatch' && inputs.profile
+        run: python tools/ci_build.py linux profile
+
+      - name: Release
+        run: python tools/ci_build.py linux release
+
+      - name: Test
+        run: |
+          python -m pytest -q tools/test_linux_port.py tools/test_host_watch_hash.py tools/test_touch_menu.py tools/harness tools/test_profile.py
+          python tools/test_light_storage.py
+
+      - name: Compile cache
+        run: ccache --show-stats
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-linux-debug
+          path: dist/halo-linux-debug
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-linux-release
+          path: dist/halo-linux-release
+          retention-days: 3
+
   android:
     # The runner image has the Android SDK and NDK, a JDK and CMake.
     runs-on: ubuntu-24.04
@@ -48,10 +124,6 @@ jobs:
           echo "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
 
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref || github.ref }}
-          fetch-depth: 0
-          persist-credentials: false
 
       - uses: actions/cache@v4
         with:
@@ -88,18 +160,6 @@ jobs:
             echo "::warning::no ANDROID_KEYSTORE_BASE64 secret: the Android builds cannot update over each other"
           fi
 
-      - name: Upstream sync regression tests
-        run: python3 -m unittest discover -s tools/tests -p 'test_sync_upstream.py' -v
-
-      - name: Touch layout tests
-        run: python3 tools/test_touch_layout.py
-
-      - name: Porting menu action tests
-        run: python3 tools/test_porting_actions.py
-
-      - name: Menu touch gesture tests
-        run: python3 tools/test_menu_touch.py
-
       - name: Debug
         env:
           HALO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -110,6 +170,10 @@ jobs:
           HALO_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: python3 tools/ci_build.py android release
 
+      # the touch controls' layout and gyroscope maths (the runner's JDK)
+      - name: Test the touch layout
+        run: python3 tools/test_touch_layout.py
+
       - name: Compile cache
         run: ccache --show-stats
 
@@ -117,10 +181,383 @@ jobs:
         with:
           name: halo-android-debug
           path: dist/halo-android-debug
-          retention-days: 14
+          retention-days: 3
 
       - uses: actions/upload-artifact@v4
         with:
           name: halo-android-release
           path: dist/halo-android-release
-          retention-days: 14
+          retention-days: 3
+
+  windows:
+    # The runner image has LLVM, Python and Visual Studio's x86 libraries and
+    # Windows SDK.
+    runs-on: windows-2025
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install the toolchain
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -OutFile ninja.zip https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-win.zip
+          Expand-Archive ninja.zip -DestinationPath "$env:RUNNER_TEMP\tools"
+          Invoke-WebRequest -OutFile ccache.zip https://github.com/ccache/ccache/releases/download/v4.10.2/ccache-4.10.2-windows-x86_64.zip
+          Expand-Archive ccache.zip -DestinationPath $env:RUNNER_TEMP
+          Copy-Item "$env:RUNNER_TEMP\ccache-4.10.2-windows-x86_64\ccache.exe" "$env:RUNNER_TEMP\tools"
+          Remove-Item ninja.zip, ccache.zip
+          "$env:RUNNER_TEMP\tools" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-windows-${{ github.sha }}
+          restore-keys: ccache-windows-
+
+      # SDL's development package, which configure.py fetches
+      - uses: actions/cache@v4
+        with:
+          path: build/windows/third_party
+          key: windows-third-party-${{ hashFiles('tools/windows_build.py') }}
+
+      - name: Debug
+        run: python tools/ci_build.py windows debug
+
+      - name: Release
+        run: python tools/ci_build.py windows release
+
+      - name: Test light storage
+        run: python tools/test_light_storage.py
+
+      - name: Compile cache
+        run: ccache --show-stats
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-windows-debug
+          path: dist/halo-windows-debug
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-windows-release
+          path: dist/halo-windows-release
+          retention-days: 3
+
+      # the PDBs, for crash reports' backtraces (tools/ci_build.py)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-windows-debug-symbols
+          path: dist/halo-windows-debug-symbols
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-windows-release-symbols
+          path: dist/halo-windows-release-symbols
+          retention-days: 3
+
+  web:
+    # Emscripten (emsdk, the version below, cached) builds the web port's
+    # site (port/web/README.md); the tests check its graph, the page's
+    # importer and service worker, its sockets, that it starts in a
+    # headless Chromium (with no game data, as far as the menus' map), and
+    # that two browsers join a room through a local MQTT broker.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      EMSDK_VERSION: 6.0.10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}-${{ hashFiles('port/web/halo_sdl3.py') }}
+
+      - name: Install the toolchain
+        run: |
+          if [ ! -x ~/emsdk/upstream/emscripten/emcc ]; then
+            rm -rf ~/emsdk
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+            ~/emsdk/emsdk install "$EMSDK_VERSION"
+          fi
+          ~/emsdk/emsdk activate "$EMSDK_VERSION"
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build ccache python3-pytest mosquitto
+
+      - uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-web-${{ github.sha }}
+          restore-keys: ccache-web-
+
+      - name: Debug
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          python3 tools/ci_build.py web debug
+
+      - name: Release
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          python3 tools/ci_build.py web release
+
+      - name: Test
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          node --test "port/web/tests/*.test.js"
+          python3 -m pytest -q tools/test_web_build.py
+
+      - name: Test in Chromium and Firefox
+        run: |
+          npm install --no-save --prefix "$RUNNER_TEMP/playwright" playwright@1.58
+          "$RUNNER_TEMP/playwright/node_modules/.bin/playwright" install --with-deps chromium firefox
+          NODE_PATH="$RUNNER_TEMP/playwright/node_modules" node port/web/tests/smoke.mjs dist/halo-web-release
+          NODE_PATH="$RUNNER_TEMP/playwright/node_modules" node port/web/tests/rooms.mjs dist/halo-web-release
+          # (the native builds' WebRTC, port/linux/src/p2p_webrtc.c, with both)
+          NODE_PATH="$RUNNER_TEMP/playwright/node_modules" node port/web/tests/webrtc_native.mjs chromium firefox
+
+      - name: Compile cache
+        run: ccache --show-stats
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-web-debug
+          path: dist/halo-web-debug
+          include-hidden-files: true
+          retention-days: 3
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: halo-web-release
+          path: dist/halo-web-release
+          include-hidden-files: true
+          retention-days: 3
+
+  release:
+    # The eight builds (and the Windows builds' PDBs) as a release, tagged
+    # build-<run number> and marked latest
+    # (every file keeps its name from release to release, for the README's
+    # latest/download links); then all but the newest five build-* releases
+    # go, tags and all. Only for main, and only when every platform built.
+    needs: [linux, android, windows, web]
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.publish.outputs.tag }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: halo-*
+          path: artifacts
+
+      - name: Package
+        run: |
+          mkdir release
+          for build in artifacts/*/; do
+            name="$(basename "$build")"
+            (cd "$build" && zip -qr "$GITHUB_WORKSPACE/release/$name.zip" .)
+          done
+          ls -l release
+
+      - name: Publish
+        id: publish
+        env:
+          MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          tag="build-$GITHUB_RUN_NUMBER"
+          subject="$(printf '%s' "${MESSAGE:-manual run}" | head -n 1)"
+          printf '%s\n\nCommit: %s\nBuild: %s\n\nThe release builds are for playing; the debug builds stop at the first failed assertion and log it.\n' \
+            "$subject" "$COMMIT_URL" "$RUN_URL" > notes.md
+          gh release create "$tag" release/*.zip --target "$GITHUB_SHA" --latest \
+            --title "Build $GITHUB_RUN_NUMBER (${GITHUB_SHA:0:7})" --notes-file notes.md
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      # The Windows builds' executables and PDBs to Sentry, which turns the
+      # crash reports of these builds (port/windows/src/win32_crash.c) into
+      # backtraces with function names and lines. Needs the SENTRY_AUTH_TOKEN
+      # secret: an organization auth token of the Sentry organization, which
+      # names the organization and its region itself. The SENTRY_PROJECT
+      # variable can name the project (its slug), else the id in the DSN of
+      # win32_crash.c; SENTRY_ORG and SENTRY_URL (https://de.sentry.io) are
+      # for a personal token instead. A failed upload does not stop the
+      # release.
+      - name: Upload Windows symbols to Sentry
+        continue-on-error: true
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT || '4512207917744208' }}
+          ORG: ${{ vars.SENTRY_ORG }}
+          URL: ${{ vars.SENTRY_URL }}
+          SENTRY_CLI_VERSION: 2.46.0
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "::warning::no SENTRY_AUTH_TOKEN secret: crash reports of this build will have no function names"
+            exit 0
+          fi
+          if [ -n "$ORG" ]; then export SENTRY_ORG="$ORG"; fi
+          if [ -n "$URL" ]; then export SENTRY_URL="$URL"; fi
+          curl -fsSL -o sentry-cli "https://github.com/getsentry/sentry-cli/releases/download/$SENTRY_CLI_VERSION/sentry-cli-Linux-x86_64"
+          chmod +x sentry-cli
+          ./sentry-cli debug-files upload --wait \
+            artifacts/halo-windows-release artifacts/halo-windows-release-symbols \
+            artifacts/halo-windows-debug artifacts/halo-windows-debug-symbols
+
+      - name: Keep the last five
+        run: |
+          gh release list --limit 100 --json tagName,createdAt \
+            --jq '[.[] | select(.tagName | startswith("build-"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' |
+          while read -r tag; do
+            gh release delete "$tag" --cleanup-tag --yes
+          done
+
+  pages:
+    # The release's web build to GitHub Pages, which serves it at
+    # https://halocombatevolved.com/ (port/web/README.md, "Hosting"). Only
+    # main, only once every platform built and the release is out (the site
+    # and the release are one build), and a deployment is never cancelled
+    # halfway. The repository's Pages source must be GitHub Actions.
+    needs: [release]
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: halo-web-release
+          path: site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+  notify:
+    # A Discord embed for the run, to the DISCORD_WEBHOOK secret (nothing
+    # without it): green when every platform built, red when one did not,
+    # with each platform's result, this run's release (main only), and links
+    # to the latest release's builds and the site.
+    needs: [linux, android, windows, web, release, pages]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Post to Discord
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          LINUX: ${{ needs.linux.result }}
+          ANDROID: ${{ needs.android.result }}
+          WINDOWS: ${{ needs.windows.result }}
+          WEB: ${{ needs.web.result }}
+          PAGES: ${{ needs.pages.result }}
+          SITE_URL: https://halocombatevolved.com/
+          RELEASE_TAG: ${{ needs.release.outputs.tag }}
+          SERVER: ${{ github.server_url }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          MESSAGE: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "no DISCORD_WEBHOOK secret: nothing to post"
+            exit 0
+          fi
+          status() {
+            case "$1" in
+              success) echo "✅ Built" ;;
+              failure) echo "❌ Failed" ;;
+              cancelled) echo "⏹️ Cancelled" ;;
+              *) echo "➖ Skipped" ;;
+            esac
+          }
+          if [ "$LINUX" = success ] && [ "$ANDROID" = success ] && [ "$WINDOWS" = success ] && [ "$WEB" = success ]; then
+            title="Build succeeded"; color=5763719
+          else
+            title="Build failed"; color=15548997
+          fi
+          latest="$SERVER/$REPOSITORY/releases/latest"
+          downloads="[Linux]($latest/download/halo-linux-release.zip) · [Windows]($latest/download/halo-windows-release.zip) · [Android]($latest/download/halo-android-release.zip) · [Web]($SITE_URL) ([all builds]($latest))"
+          if [ -n "$RELEASE_TAG" ]; then
+            release="[$RELEASE_TAG]($SERVER/$REPOSITORY/releases/tag/$RELEASE_TAG)"
+            if [ "$PAGES" = success ]; then
+              release="$release, on [the site]($SITE_URL)"
+            fi
+          else
+            release="None (only a successful build of main makes one)"
+          fi
+          subject="$(printf '%s' "${MESSAGE:-manual run}" | head -n 1 | cut -c1-200)"
+          jq -n \
+            --arg title "$title" --argjson color "$color" --arg url "$RUN_URL" \
+            --arg description "[\`${SHA:0:7}\`]($COMMIT_URL) $subject — $ACTOR ($BRANCH)" \
+            --arg release "$release" --arg downloads "$downloads" \
+            --arg linux "$(status "$LINUX")" --arg windows "$(status "$WINDOWS")" --arg android "$(status "$ANDROID")" \
+            --arg web "$(status "$WEB")" \
+            --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{embeds: [{
+              title: $title, url: $url, color: $color, description: $description, timestamp: $timestamp,
+              fields: [
+                {name: "Linux", value: $linux, inline: true},
+                {name: "Windows", value: $windows, inline: true},
+                {name: "Android", value: $android, inline: true},
+                {name: "Web", value: $web, inline: true},
+                {name: "Release", value: $release},
+                {name: "Latest release builds", value: $downloads}
+              ]
+            }]}' > payload.json
+          # Discord rate limits webhooks (HTTP 429, with how many seconds to
+          # wait in retry_after): wait and try again, a few times. A post
+          # still limited, or a network or Discord error, is a warning rather
+          # than a failed run; any other answer (a deleted webhook) fails. (At
+          # most 5 tries of 15 seconds and 4 waits of 30: inside the job's 5
+          # minutes.)
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS --max-time 15 -o response.json -w '%{http_code}' \
+              -H "Content-Type: application/json" -d @payload.json "$WEBHOOK") || code=000
+            case "$code" in
+              2??)
+                exit 0
+                ;;
+              429)
+                wait=$(jq -r '.retry_after // 5' response.json 2>/dev/null || echo 5)
+                wait=$(awk -v w="$wait" 'BEGIN { w += 0; if (w < 1) w = 1; if (w > 30) w = 30; printf "%d", w + 0.999 }')
+                echo "Discord is rate limiting the webhook; trying again in ${wait}s (attempt $attempt of 5)"
+                ;;
+              000|5??)
+                wait=5
+                echo "Discord answered HTTP $code; trying again in ${wait}s (attempt $attempt of 5)"
+                ;;
+              *)
+                echo "::error::Discord answered HTTP $code: $(cat response.json 2>/dev/null)"
+                exit 1
+                ;;
+            esac
+            [ "$attempt" -lt 5 ] && sleep "$wait"
+          done
+          echo "::warning::The Discord post did not go through after 5 attempts (HTTP $code)"

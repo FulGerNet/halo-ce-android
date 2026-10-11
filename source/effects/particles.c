@@ -209,7 +209,7 @@ static real const particle_collision_effect_scale_bounds[2] = {1.5f, 0.5f};
 
 static struct profile_section particles_update_section = {"particles_update", NONE, TRUE};
 /* A frame was a tick on the Xbox. The native builds draw several frames per
-tick (port/shared/game/render_interpolation.c), so what counted frames counts
+tick (port/linux/game/render_interpolation.c), so what counted frames counts
 30 Hz ticks of game time instead: particles that animate once a frame step
 once a tick, and a particle is deleted once it has gone unrendered for
 MAXIMUM_PARTICLE_UNRENDERED_FRAME_COUNT ticks, the frame index drawn at each

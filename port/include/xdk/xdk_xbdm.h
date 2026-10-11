@@ -17,7 +17,7 @@ Source: cachebeta.exe, the start-up module walk (0x580ab0, shell_xbox.c)
 compares every DmWalkLoadedModules and DmWalkModuleSections result with
 0x82db0104, the end of a list. XBDM_NOERR is the facility's plain success
 code (severity 0, code 0); nothing in the game tests it, only
-port/shared/src/xbdm.c returns it. */
+port/linux/src/xbdm.c returns it. */
 #define XBDM_NOERR ((HRESULT)0x02DB0000L)
 #define XBDM_ENDOFLIST ((HRESULT)0x82DB0104L)
 
@@ -59,7 +59,7 @@ typedef struct _DM_WALK_MODSECT *PDM_WALK_MODSECT;
 /* Module and section walks.
 Source: cachebeta.exe's imports from xbdm.dll (_DmWalkLoadedModules@8,
 _DmWalkModuleSections@12, _DmCloseModuleSections@4: __stdcall) and the
-game's calls; they match port/shared/src/xbdm.c. */
+game's calls; they match port/linux/src/xbdm.c. */
 HRESULT __stdcall DmWalkLoadedModules(PDM_WALK_MODULES *walk, PDMN_MODLOAD module);
 HRESULT __stdcall DmWalkModuleSections(PDM_WALK_MODSECT *walk, const char *module_name, PDMN_SECTIONLOAD section);
 HRESULT __stdcall DmCloseModuleSections(PDM_WALK_MODSECT walk);

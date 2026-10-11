@@ -23,7 +23,7 @@ NEGATIVE_CONTROLS = {
 
 
 def generated(fault=None, faulty_function=None):
-    source = read("port/shared/game/loose_sounds.c")
+    source = read("port/linux/game/loose_sounds.c")
     config = ""
     for name in ("TAG_FILE_FOLDER", "TAG_FILE_EXTENSION"):
         match = re.search(r"#define " + name + r" (\".*\")", source)

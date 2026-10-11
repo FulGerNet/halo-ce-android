@@ -7,7 +7,7 @@ screen, the frame rate, the keyboard's own controls).
 
 A row's spinner sets one of config.toml's settings (setting=, values=), or of
 the profile being edited ("profile.<field>": the controller's settings), by
-port/shared/game/menu_functions.c: "port setting load" shows its value,
+port/linux/game/menu_functions.c: "port setting load" shows its value,
 "port settings save" (OK) writes those changed and applies them, "port
 settings defaults" shows the defaults. Controls Setup binds the keyboard and
 mouse's controls, by the functions the PC version names for it.
@@ -29,7 +29,7 @@ VOLUMES = [(str(step), f"{step / 10:g}") for step in range(11)]
 # (label, setting, [(shown, value)], help, platform[, key]): platform is None
 # for every platform, else the platforms the row is for, separated by spaces
 # ("desktop", "android", "web": the menus' platform attribute,
-# port/shared/src/menu_files.c); key names the row's widgets where two rows set
+# port/linux/src/menu_files.c); key names the row's widgets where two rows set
 # one setting (one for each platform), else the setting's name does
 SCREENS = {
     "video_settings": {
@@ -41,7 +41,7 @@ SCREENS = {
         "help_top": 364,
         "platform_places": True,
         # (rows in the place of the row before them: Window Size in
-        # Resolution's, port/shared/game/menu_functions.c showing the one the
+        # Resolution's, port/linux/game/menu_functions.c showing the one the
         # display mode chosen uses; Android's anti-aliasing in the desktop's)
         "same_place": ["display.window_size", "anti_aliasing_android"],
         "rows": [
@@ -49,11 +49,11 @@ SCREENS = {
              [("FULLSCREEN", "fullscreen"), ("BORDERLESS", "borderless"), ("WINDOWED", "windowed")],
              "Fullscreen takes the display; borderless covers it\nwith a window. F11 switches to the window.",
              "desktop"),
-            # (port/shared/game/menu_tags.c adds the display's resolutions)
+            # (port/linux/game/menu_tags.c adds the display's resolutions)
             ("RESOLUTION:", "display.resolution", [("NATIVE", "native")],
              "What fullscreen and borderless draw at. Fullscreen\nsets the display to it; borderless scales it.",
              "desktop"),
-            # (port/shared/game/menu_tags.c puts the sizes that fit the desktop
+            # (port/linux/game/menu_tags.c puts the sizes that fit the desktop
             # in place of this one)
             ("WINDOW SIZE:", "display.window_size", [("1280 x 960", "1280x960")],
              "The window's size: 4:3, then 16:10, 16:9 and 21:9\n(its edges can also be dragged).", "desktop"),
@@ -116,7 +116,7 @@ SCREENS = {
         # (the devices, desktop only, first: Android's rows from the top)
         "platform_places": True,
         "rows": [
-            # (port/shared/game/menu_tags.c adds the devices SDL finds)
+            # (port/linux/game/menu_tags.c adds the devices SDL finds)
             ("OUTPUT DEVICE:", "audio.output_device", [("SYSTEM DEFAULT", "default")],
              "Where the game's sound and the voices play.", "desktop"),
             ("INPUT DEVICE:", "audio.input_device", [("SYSTEM DEFAULT", "default")],
@@ -129,7 +129,7 @@ SCREENS = {
              "Echo sounds as the place you are in does, and\nmuffle those behind walls, as the Xbox did.", None),
             ("SOUND:", "audio.enabled", ON_OFF,
              "Play sound at all; from the next time the game\nstarts.", None),
-            # voice chat: this machine's own (port/shared/game/network_voice.c)
+            # voice chat: this machine's own (port/linux/game/network_voice.c)
             ("VOICE CHAT:", "audio.voice_chat",
              [("PUSH TO TALK", "push_to_talk"), ("OPEN MIC", "open_mic"), ("OFF", "off")],
              "Talk in network games: while PUSH TO TALK is held\n(Controls), whenever you speak, or never.", None),
@@ -227,7 +227,7 @@ SCREENS["video_settings/fov_viewmodels"] = {
 }
 
 # Controls Setup: the keyboard and mouse's actions, in groups (the order of
-# port/shared/game/menu_functions.c's table of them)
+# port/linux/game/menu_functions.c's table of them)
 CONTROL_GROUPS = ["MOVEMENT", "WEAPONS", "ACTIONS"]
 CONTROL_ROWS = 7
 
@@ -1327,7 +1327,7 @@ def _item_options_extras() -> list:
 
 def _teamplay_options_extras() -> list:
     """Teamplay Options' rows of the port's: the host's voice chat
-    (port/shared/game/network_voice.c) and vote kicks (network_votekick.c),
+    (port/linux/game/network_voice.c) and vote kicks (network_votekick.c),
     in Server Setup's copy only (menu_functions.c's gametype_options_init),
     kept in config.toml"""
     lines = []

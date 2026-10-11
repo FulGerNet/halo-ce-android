@@ -572,7 +572,7 @@ static void antenna_update(
 			real inverse_delta = 1.0f / delta;
 			/* The spring pulls the same fraction of the way each update, an
 			update a tick on the Xbox; the native builds update every frame,
-			several a tick (port/shared/game/render_interpolation.c), so pull
+			several a tick (port/linux/game/render_interpolation.c), so pull
 			as far as a tick's worth would. */
 			if (spring > 0.0f)
 			{

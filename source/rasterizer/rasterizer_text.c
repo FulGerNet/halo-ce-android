@@ -78,7 +78,7 @@ symbols in this file:
 #include "text/unicode.h"
 #include "tag_files/tag_files.h"
 
-/* port: the high-res text (port/shared/src/text_hires.c): the text drawn with
+/* port: the high-res text (port/linux/src/text_hires.c): the text drawn with
 fonts at the display's resolution, laid out as before. Characters are drawn
 from an atlas of the fonts' glyphs that a placeholder bitmap stands for. */
 struct text_hires_glyph
@@ -94,7 +94,6 @@ int text_hires_glyph(long font, unsigned long code, struct text_hires_glyph *gly
 void text_hires_register_atlas(unsigned long const *texture, unsigned long width, unsigned long height);
 
 /* ---------- constants */
-
 
 enum
 {

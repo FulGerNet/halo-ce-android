@@ -332,7 +332,7 @@ typedef char verify_game_engine_player_update_offset[
 	offsetof(struct game_engine, player_update) == 0x70 ? 1 : -1];
 
 /* port: the most a game type's state for the distributed netcode's clients
-may take (port/shared/game/network_distributed.c's MAXIMUM_GAME_STATE_SIZE,
+may take (port/linux/game/network_distributed.c's MAXIMUM_GAME_STATE_SIZE,
 less the postgame state game_engine_write_network_state puts first) */
 #define GAME_ENGINE_MAXIMUM_NETWORK_STATE_SIZE (0xF00 - 4)
 

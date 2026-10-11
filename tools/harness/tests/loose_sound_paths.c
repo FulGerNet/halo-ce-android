@@ -1,7 +1,7 @@
 /*
 LOOSE_SOUND_PATHS.C (test)
 
-The real checks of port/shared/game/loose_sounds.c that stand between a map's
+The real checks of port/linux/game/loose_sounds.c that stand between a map's
 sound tag names (a Custom Edition map's are anyone's) and the files opened,
 and between a tag file's counts and offsets and the memory read:
 test_loose_sound_paths.py takes the folder and extension (config.inc) and the

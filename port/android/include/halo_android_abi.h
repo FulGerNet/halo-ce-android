@@ -32,7 +32,7 @@ keeps its heaps low in the address space and fills it upwards */
 /* the room the host reserves for the image there (port/android/host/host_memory.c) */
 #define HALO_GUEST_IMAGE_RESERVE 0x04000000u
 
-/* the Xbox contiguous memory window (port/shared/src/platform.h) */
+/* the Xbox contiguous memory window (port/linux/src/platform.h) */
 #define HALO_GUEST_WINDOW_BASE 0x80000000u
 #define HALO_GUEST_WINDOW_SIZE 0x08000000u
 

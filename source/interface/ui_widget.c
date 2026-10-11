@@ -5618,7 +5618,7 @@ void menu_functions_text_box_drawn(struct widget_instance *widget, rectangle2d c
 
 The menus were made for a controller: the d-pad moves the focus through a
 screen's items and A activates the focused one. With the mouse
-(port/shared/include/halo_ui_pointer.h) the item under the pointer takes the
+(port/linux/include/halo_ui_pointer.h) the item under the pointer takes the
 focus, a left click presses A on it (on a spinner list, left or right by the
 half clicked), a right click presses B and the wheel the d-pad. The items and
 where they are drawn are noted while the menus draw (ui_mouse_note_target),
@@ -6663,8 +6663,10 @@ static boolean ui_mouse_menus_active(
 	return virtual_keyboard_active() || ui_mouse_menu() != NULL || game_engine_showing_postgame();
 }
 
+#ifdef HALO_ANDROID
 #include "ui_widget_porting.h"
 
+#endif
 /* port: a row of a list to choose from (the PC version's menus' lists of
 gametypes, maps, profiles, levels and games: port/assets/menus) */
 static boolean ui_mouse_selection_row(
@@ -8553,7 +8555,7 @@ static boolean ui_check_for_pause_game(
 		}
 	}
 	/* This runs once a frame, several frames per tick on the native builds
-	(port/shared/game/render_interpolation.c): count the lock down in 30 Hz
+	(port/linux/game/render_interpolation.c): count the lock down in 30 Hz
 	ticks of real time, not in frames. */
 	{
 		static real leftover_ticks = 0.f;

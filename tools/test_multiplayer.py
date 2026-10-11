@@ -6,8 +6,8 @@ import wasm_test
 import re, shutil, subprocess
 root=Path(__file__).resolve().parent.parent
 out=root/'build/multiplayer-tests';out.mkdir(parents=True,exist_ok=True)
-p=(root/'port/shared/src/p2p.c').read_text()
-s=(root/'port/shared/src/p2p_signal.c').read_text()
+p=(root/'port/linux/src/p2p.c').read_text()
+s=(root/'port/linux/src/p2p_signal.c').read_text()
 def block(text,start):
  begin=text.index(start);brace=text.index('{',begin);depth=1;end=brace+1
  while depth:
@@ -36,7 +36,7 @@ static int elapsed(unsigned long t,unsigned long duration){return now-t>=duratio
 enum{P2P_IDENTIFIER_SIZE=6,P2P_SHA256_SIZE=32,P2P_NONCE_SIZE=12,P2P_TAG_SIZE=16,P2P_KEY_SIZE=32,P2P_SEAL_OVERHEAD=28,P2P_MAXIMUM_CANDIDATES=4,P2P_MAXIMUM_PEERS=127,P2P_RELAY_PACKET_SIZE=2048,P2P_RELAY_PROBE_SIZE=36};
 '''
 lib+="\nint p2p_equal(const void*,const void*,int);\n"
-crypto=re.sub(r'^#include.*\n','',(root/'port/shared/src/p2p_crypto.c').read_text(),flags=re.M)
+crypto=re.sub(r'^#include.*\n','',(root/'port/linux/src/p2p_crypto.c').read_text(),flags=re.M)
 # These relay tests exercise SHA/HMAC and the sealed tunnel. Public listing
 # signatures are covered separately by upstream's p2p_lobby_check.
 crypto=crypto[:crypto.index('void p2p_sha512(')]
@@ -90,7 +90,7 @@ int run_tests(void){
 def run(name,code):
  (out/(name+'.c')).write_text(lib+crypto+code)
  ndk=Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
- subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/(name+'.c')),'-o',str(out/(name+'.o'))],check=True)
+ subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-DHALO_ANDROID=1','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/(name+'.c')),'-o',str(out/(name+'.o'))],check=True)
  subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/(name+'.o')),'-o',str(out/(name+'.wasm'))],check=True)
  wasm_test.check(out/(name+'.wasm'), name, name+' passed')
 run('encrypted-tunnel-fallback',transport)
@@ -142,7 +142,7 @@ int run_tests(void){
 '''
 run('mqtt-relay-session',relay)
 # Verify the actual browser filters with mixed LAN and invited games.
-m=(root/'port/shared/game/menu_functions.c').read_text()
+m=(root/'port/linux/game/menu_functions.c').read_text()
 browser=r'''
 typedef int boolean;typedef short wchar_t;
 #define MAX(a,b) ((a)>(b)?(a):(b))

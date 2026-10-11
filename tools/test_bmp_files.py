@@ -1,4 +1,4 @@
-"""Tests for reading the pictures of Custom Edition maps (port/shared/game/bmp_files.c).
+"""Tests for reading the pictures of Custom Edition maps (port/linux/game/bmp_files.c).
 
 The tests write small bmp files, of each kind the module reads and of many
 kinds it must refuse, and run the report tool port/tools/bmp_file_report.c
@@ -17,7 +17,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = ROOT / "port/shared/game/bmp_files.c"
+MODULE = ROOT / "port/linux/game/bmp_files.c"
 TOOL = ROOT / "port/tools/bmp_file_report.c"
 
 STRICT_FLAGS = ["-Wall", "-Wextra", "-Wpedantic", "-Werror"]
@@ -70,7 +70,7 @@ def report_tool(tmp_path_factory):
 
 
 def test_module_compiles_as_game_code_without_warnings(tmp_path):
-    """The game compiles port/shared/game with -std=gnu89 -w; check the
+    """The game compiles port/linux/game with -std=gnu89 -w; check the
     warnings it hides."""
     clang = find_clang()
     if clang is None:

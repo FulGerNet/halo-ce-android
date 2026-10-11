@@ -237,7 +237,7 @@ symbols in this file:
 #include "effects/contrail_definitions.h"
 #endif
 
-/* port/shared/game/pal_tags.c's */
+/* port/linux/game/pal_tags.c's */
 short pal_tags_first_person_frames(long graph_index, short animation_index, short frames);
 
 /* ---------- constants */
@@ -1378,7 +1378,7 @@ short weapon_get_first_person_animation_time(
 					{
 					case _weapon_first_person_animation_time_frame_count:
 						time = animation->frame_count;
-						/* port: a PAL map's animation, the NTSC maps' frame count (port/shared/game/pal_tags.c) */
+						/* port: a PAL map's animation, the NTSC maps' frame count (port/linux/game/pal_tags.c) */
 						time = pal_tags_first_person_frames(weapon_definition->weapon.interface_definition.first_person_animations.index,
 							animation_index, time);
 						break;

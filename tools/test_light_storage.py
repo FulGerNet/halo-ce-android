@@ -34,7 +34,7 @@ def owner_definition(source, declaration, export):
 
 def run(cc):
     windows = sys.platform == "win32"
-    common = (ROOT / "port/shared/src/halo_linker_common.c").read_text()
+    common = (ROOT / "port/linux/src/halo_linker_common.c").read_text()
     lights = (ROOT / "source/objects/object_lights.c").read_text()
     partitions = (ROOT / "source/structures/cluster_partitions.c").read_text()
     macro = common[common.index("#define HALO_COMMON"):common.index("HALO_COMMON(ai_globals")]

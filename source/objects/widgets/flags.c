@@ -579,7 +579,7 @@ void flag_update(
 				}
 
 				/* The native builds update flags every frame, several frames a
-				tick (port/shared/game/render_interpolation.c): a new random push
+				tick (port/linux/game/render_interpolation.c): a new random push
 				every frame would mostly cancel out and leave the cloth stiller
 				the higher the frame rate. Keep each vertex's push for the whole
 				tick, as long as it lasted on the Xbox. */

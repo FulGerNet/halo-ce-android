@@ -140,7 +140,7 @@ struct dump_datum
 
 /* ---------- prototypes */
 
-/* port/shared/game/network_objects.c's: a client of the distributed netcode
+/* port/linux/game/network_objects.c's: a client of the distributed netcode
 makes the host's objects at the host's datum indices, and deletes them only
 on the host's word */
 long network_objects_new_object_index(void);
@@ -1299,7 +1299,7 @@ real_matrix4x3 *object_get_node_matrices(
 	long object_index)
 {
 	/* while a frame is drawn, the pose between the last two ticks
-	(port/shared/game/render_interpolation.c) */
+	(port/linux/game/render_interpolation.c) */
 	real_matrix4x3 *interpolated = render_interpolation_object_node_matrices(object_index);
 
 	if (interpolated)

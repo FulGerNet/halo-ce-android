@@ -1384,7 +1384,7 @@ struct oddball_network_state
 typedef char verify_oddball_network_state_size[
 	sizeof(struct oddball_network_state) <= GAME_ENGINE_MAXIMUM_NETWORK_STATE_SIZE ? 1 : -1];
 
-/* port/shared/game/network_distributed.c's */
+/* port/linux/game/network_distributed.c's */
 byte distributed_player_to_byte(long player_index);
 long distributed_player_from_byte(byte player_index);
 
@@ -1458,7 +1458,7 @@ static void oddball_client_score_sounds(
 	return;
 }
 
-/* the distributed netcode (port/shared/game/network_distributed.c): the game
+/* the distributed netcode (port/linux/game/network_distributed.c): the game
 type's state the host sends its clients, which take it as it is */
 long game_engine_oddball_write_network_state(
 	byte *buffer,

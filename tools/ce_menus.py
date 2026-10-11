@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes the PC version's menus (Halo Custom Edition's) as the port's menu
-files (port/assets/menus/ce, read by port/shared/src/menu_files.c):
+files (port/assets/menus/ce, read by port/linux/src/menu_files.c):
 
     python tools/ce_menus.py --tags .../halopc-restored/tags \\
         --definitions .../invader/src/tag/hek/definition \\
@@ -27,7 +27,7 @@ be redrawn.
 
 What this engine (the Xbox's) has no use for is written but never runs: the
 PC version's mouse events (the port's own mouse support clicks with A), and
-its own functions (port/shared/game/menu_functions.c, most of which do
+its own functions (port/linux/game/menu_functions.c, most of which do
 nothing yet). Its gamespy and ticker fonts are drawn with small_ui, which
 the Xbox's map has.
 
@@ -558,7 +558,7 @@ def main() -> None:
     inputs = tags.options("UIGameDataInputReferenceFunction")
     functions[:102] = engine_names(ROOT / "source/interface/ui_widget_event_handler_functions.c",
                                    '\t{\n\t\t"NULL",', 102)
-    inputs[:41] = engine_names(ROOT / "port/shared/game/menu_tags.c", "game_data_input_names[] =", 41)
+    inputs[:41] = engine_names(ROOT / "port/linux/game/menu_tags.c", "game_data_input_names[] =", 41)
     for folder in (CE, SVG_COPIES, MENUS / "port_svg"):
         if folder.exists():
             shutil.rmtree(folder)
@@ -701,7 +701,7 @@ def main() -> None:
         "# Menu functions that are not wired yet",
         "",
         "The PC version's menus (`ce/`, from `tools/ce_menus.py`) run functions of the game's. These do nothing",
-        "yet (`port/shared/game/menu_functions.c`), so what they fill in (lists, values) is empty, and what they",
+        "yet (`port/linux/game/menu_functions.c`), so what they fill in (lists, values) is empty, and what they",
         "do (save a setting, join a game) does not happen; the screens open and close as the PC version's.",
         "",
         "- The PC version's own functions, which the Xbox's game has not.",

@@ -265,9 +265,9 @@ symbols in this file:
 /* system_milliseconds(), for the settings update interval */
 #include "cseries/cseries_windows.h"
 
-/* port/shared/game/network_distributed.c's */
+/* port/linux/game/network_distributed.c's */
 void network_distributed_handle_message(long machine_index, word const *message, word size);
-/* port/shared/game/network_voice.c's: voice chat, in the lobby too */
+/* port/linux/game/network_voice.c's: voice chat, in the lobby too */
 boolean network_voice_handles_message(word const *message, word size);
 void network_voice_handle_message(long machine_index, word const *message, word size);
 void network_distributed_handle_stream_message(long machine_index, word const *message, word size);
@@ -277,7 +277,7 @@ void network_distributed_handle_stream_message(long machine_index, word const *m
 enum
 {
 	/* the native builds' session limits and protocol
-	(port/shared/include/halo_port_limits.h) */
+	(port/linux/include/halo_port_limits.h) */
 	MAXIMUM_NETWORK_MACHINE_COUNT = HALO_PORT_MAXIMUM_NETWORK_MACHINES,
 	NETWORK_MESSAGE_BUFFER_SIZE = HALO_PORT_MAXIMUM_NETWORK_MESSAGE_SIZE,
 	NETWORK_GAME_MESSAGE_VERSION = HALO_PORT_NETWORK_GAME_MESSAGE_VERSION,
@@ -854,7 +854,7 @@ static struct network_game_server_client_machine *network_game_server_client_mac
 	return game_machine_index == machine_index ? machine : NULL;
 }
 
-/* the distributed netcode's per-tick state (port/shared/game/network_distributed.c),
+/* the distributed netcode's per-tick state (port/linux/game/network_distributed.c),
 unreliably (a lost one is overtaken by the next) to one machine in the game */
 boolean network_distributed_server_send_to_machine(
 	long machine_index,
@@ -1366,7 +1366,7 @@ boolean network_game_server_handle_client_message(
 				break;
 
 			case _message_type_data:
-				/* the distributed netcode's messages (port/shared/NETCODE.md) */
+				/* the distributed netcode's messages (port/linux/NETCODE.md) */
 				/* (port: voice chat's from any machine that joined, in the
 				lobby too: network_voice.c) */
 				if (network_voice_handles_message(message, message_buffer_size))
@@ -1576,7 +1576,7 @@ boolean network_game_server_handle_datagram(
 			break;
 
 			case _message_type_data:
-				/* the distributed netcode's messages (port/shared/NETCODE.md) */
+				/* the distributed netcode's messages (port/linux/NETCODE.md) */
 				/* (port: voice chat's from any machine that joined, in the
 				lobby too, its key checked: network_voice.c) */
 				if (network_voice_handles_message(message, datagram_size))

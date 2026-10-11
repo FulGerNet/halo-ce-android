@@ -92,6 +92,6 @@ int run_tests(void){
 '''
 (out / 'test.c').write_text(code)
 ndk = Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
-subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
+subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-DHALO_ANDROID=1','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
 subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/'test.o'),'-o',str(out/'test.wasm')],check=True)
 wasm_test.check(out/'test.wasm', 'Startup engine', 'Engine init parsing, spawn deferral, once-per-map execution, pause commands and client rules passed')

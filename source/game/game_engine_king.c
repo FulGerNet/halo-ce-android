@@ -1132,7 +1132,7 @@ struct game_engine king_engine =
 typedef char verify_king_network_state_size[
 	sizeof(struct king_globals) <= GAME_ENGINE_MAXIMUM_NETWORK_STATE_SIZE ? 1 : -1];
 
-/* the distributed netcode (port/shared/game/network_distributed.c): the game
+/* the distributed netcode (port/linux/game/network_distributed.c): the game
 type's state the host sends its clients */
 long game_engine_king_write_network_state(
 	byte *buffer,

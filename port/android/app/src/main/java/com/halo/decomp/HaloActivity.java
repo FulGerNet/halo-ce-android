@@ -280,7 +280,7 @@ public class HaloActivity extends SDLActivity {
 
     /**
      * The game draws a frame at every display refresh, between its 30 Hz
-     * ticks (port/shared/game/render_interpolation.c); Android otherwise
+     * ticks (port/linux/game/render_interpolation.c); Android otherwise
      * often keeps an app at 60 Hz on a faster display.
      */
     private void preferHighestRefreshRate() {

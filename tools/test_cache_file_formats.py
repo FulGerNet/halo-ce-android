@@ -1,5 +1,5 @@
 """Tests for loading Custom Edition caches, and refusing those that need
-OpenSauce (port/shared/game/cache_file_formats.c).
+OpenSauce (port/linux/game/cache_file_formats.c).
 
 The tests build complete but tiny Custom Edition caches and resource maps in
 memory, so no game data is needed or stored, and run the report tool
@@ -24,7 +24,7 @@ import zlib
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-MODULE = ROOT / "port/shared/game/cache_file_formats.c"
+MODULE = ROOT / "port/linux/game/cache_file_formats.c"
 TOOL = ROOT / "port/tools/cache_file_report.c"
 
 BASE = 0x40440000
@@ -80,7 +80,7 @@ def report_tool(tmp_path_factory):
 
 
 def test_module_compiles_as_game_code_without_warnings(tmp_path):
-    """The game compiles port/shared/game with -std=gnu89 -w; check the
+    """The game compiles port/linux/game with -std=gnu89 -w; check the
     warnings it hides."""
     clang = find_clang()
     if clang is None:

@@ -891,7 +891,7 @@ void player_effect_get_camera_effect_matrix(
 	if (local_player_index != NONE)
 	{
 		/* The camera is drawn every frame, several frames per tick on the
-		native builds (port/shared/game/render_interpolation.c), and each draw
+		native builds (port/linux/game/render_interpolation.c), and each draw
 		shook it in a new random direction: shake once a tick, as on the
 		Xbox, by drawing from a seed made from the tick. */
 		unsigned long *local_seed = get_global_local_random_seed_address();
@@ -1100,7 +1100,7 @@ void player_effect_get_camera_effect_matrix(
 
 				/* Looping sounds add their continuous shake once a frame
 				(game_sound.c), so it is used up once a frame too: a frame that
-				runs no tick (port/shared/game/render_interpolation.c) must not
+				runs no tick (port/linux/game/render_interpolation.c) must not
 				keep it and have the next frame's shake added on top. */
 				effect->continuous_effect_timer = 1;
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draws the Android fork's Porting options art (port/assets/menus/ce/port/porting):
+"""Draws the Android app's Porting options art (port/assets/menus/ce/port/porting):
 
     python tools/porting_assets.py            # the pictures, their XML and the glyphs' header
     python tools/porting_assets.py --check DIRECTORY
@@ -15,7 +15,7 @@ its text is longer at the same size.
 The Porting options screens opened from the main menu set their text in the
 same typeface. The game has no font tag of it, so each character is a frame of
 one bitmap (white, tinted as it is drawn), and
-port/shared/include/halo_porting_font.h has their advances
+port/linux/include/halo_porting_font.h has their advances
 (source/interface/ui_widget_porting.h draws them).
 
 --check draws SETTINGS as PORTING OPTIONS is drawn and writes it beside the
@@ -35,7 +35,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 MENUS = ROOT / "port/assets/menus"
 FONT = ROOT / "port/assets/fonts/OpenCE-Regular.ttf"
-HEADER = ROOT / "port/shared/include/halo_porting_font.h"
+HEADER = ROOT / "port/linux/include/halo_porting_font.h"
 XML = "ce/porting.port.xml"
 FOLDER = "ce/port/porting"
 REFERENCE = MENUS / "ce/shell/main_menu"
@@ -117,6 +117,8 @@ def glyph_frames() -> tuple:
             continue
         advance = int(round(font.getlength(character)))
         width = advance + 2 * GLYPH_PAD
+        # (whole units, as the menus' pictures are)
+        width += -width % SCALE
         image = Image.new("L", (width, GLYPH_HEIGHT), 0)
         ImageDraw.Draw(image).text((GLYPH_PAD, cap_top - font.getbbox("H")[1]), character, font=font, fill=255)
         box = image.getbbox()
@@ -164,33 +166,35 @@ def write_assets() -> None:
         stale.unlink()
     pngs = []
     xml = ['<?xml version="1.0" encoding="UTF-8"?>',
-           "<!-- The Android fork's Porting options art (tools/porting_assets.py) -->", "<menus>",
-           '\t<bitmap name="porting/menu_porting_options">']
+           "<!-- The Android app's Porting options art (tools/porting_assets.py) -->", "<menus>",
+           '\t<bitmap name="porting/menu_porting_options" platform="android">']
     item_width = 512 * SCALE
     for index, frame in enumerate(item_frames("PORTING OPTIONS", item_width)):
         png = f"{FOLDER}/menu_porting_options__{index}.png"
         frame.save(MENUS / png, optimize=True)
         pngs.append(png)
         xml.append(f'\t\t<frame png="{png}" width="512" height="64"/>')
-    xml += ["\t</bitmap>", '\t<bitmap name="porting/font">']
+    xml += ["\t</bitmap>", '\t<bitmap name="porting/font" platform="android">']
     glyphs, space = glyph_frames()
     for index, (character, picture, advance, width) in enumerate(glyphs):
         png = f"{FOLDER}/font__{index:02d}.png"
         picture.save(MENUS / png, optimize=True)
         pngs.append(png)
-        xml.append(f'\t\t<frame png="{png}" width="{math.ceil(width / SCALE)}" '
-                   f'height="{math.ceil(GLYPH_HEIGHT / SCALE)}"/>')
+        xml.append(f'\t\t<frame png="{png}" width="{width // SCALE}" '
+                   f'height="{GLYPH_HEIGHT // SCALE}"/>')
     xml += ["\t</bitmap>", "</menus>", ""]
     (MENUS / XML).write_text("\n".join(xml), encoding="utf-8", newline="\n")
     write_header(glyphs, space)
 
-    # menus.json lists what the game embeds: the XML files, then the pictures
+    # menus.json lists what the game embeds: the XML files, then the pictures;
+    # these only in the Android build (android_files: tools/embed_assets.py)
     listing = MENUS / "menus.json"
     menus = json.loads(listing.read_text(encoding="utf-8"))
     files = [name for name in menus["files"] if name != XML and not name.startswith(FOLDER + "/")]
     files += [XML, *pngs]
     menus["files"] = sorted((name for name in files if name.endswith(".xml"))) + \
         sorted(name for name in files if not name.endswith(".xml"))
+    menus["android_files"] = [XML, *sorted(pngs)]
     listing.write_text(json.dumps(menus, indent=1) + "\n", encoding="utf-8", newline="\n")
     print(f"{len(pngs)} pictures in {folder.relative_to(ROOT)}, {XML}, {HEADER.relative_to(ROOT)}")
 

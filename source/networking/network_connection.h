@@ -12,7 +12,7 @@ header included in hcex build.
 
 enum
 {
-	/* the distributed netcode's per-tick state (port/shared/NETCODE.md): as
+	/* the distributed netcode's per-tick state (port/linux/NETCODE.md): as
 	large as fits one Ethernet frame with the internet play tunnel's
 	overhead (every native build must agree) */
 	DATAGRAM_MAXIMUM_SIZE = 1200,

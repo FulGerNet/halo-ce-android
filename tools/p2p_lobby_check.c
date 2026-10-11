@@ -2,7 +2,7 @@
 P2P_LOBBY_CHECK.C
 
 A check of internet play's signatures and the server browser's listings
-(port/shared/src/p2p_crypto.c, port/shared/src/p2p_lobby.c), built with the
+(port/linux/src/p2p_crypto.c, port/linux/src/p2p_lobby.c), built with the
 platform layer's flags by tools/test_linux_port.py: RFC 8032's Ed25519
 vectors; the X25519 key a seed gives against its Ed25519 key's conversion;
 bad signatures, other keys and small-order keys turned away; and a listing

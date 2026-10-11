@@ -1,244 +1,191 @@
-<a href="https://www.buymeacoffee.com/fulger" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 37px !important;width: 170px !important;box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;-webkit-box-shadow: 0px 3px 2px 0px rgba(190, 190, 190, 0.5) !important;" ></a>
+# Halo: Combat Evolved for Linux, Windows, Android and the web
 
-# Halo: Combat Evolved for Android
+[![Join our Discord](https://invidget.switchblade.xyz/9gqcHyr5km)](https://discord.gg/9gqcHyr5km)
 
-An Android-focused fork of [cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal),
-with built-in multi-touch controls, direct swipe aiming, optional phone rumble
-and gyroscope aiming, and a customizable, portable touch layout.
-Repository: [theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android).
+This project is a port of the Halo: Combat Evolved decompilation to Linux,
+Windows, Android and web browsers. The decompilation is of the Xbox build 2342
+(`cachebeta.exe`, SHA-256
+`4cc87b45f721270392a96f1674ed2b5cd4a7bb4355faeab4531d1cf1884d9520`).
 
-The game runs as an ARM64 app with OpenGL ES 3 and SDL3 audio. It requires
-Android 9 (API 28) or later and a 64-bit ARM device. Game data is not included.
+<img width="1289" height="995" alt="The game on Linux" src="https://github.com/user-attachments/assets/0d3ad50f-f8b8-46cf-aef8-e3661da2a7d7" />
 
-## Download and install
+The port starts from the decompilation of [bnunu/halo-1](https://github.com/bnunu/halo-1).
+That project is a fork of [punpckhdq/halo](https://github.com/punpckhdq/halo).
 
-Get [the latest Android release](https://github.com/theLlamaNet/halo-ce-android/releases/latest)
-or the APK archives from [GitHub Actions](https://github.com/theLlamaNet/halo-ce-android/actions).
-Release builds are for playing; debug builds stop on failed game assertions
-and are intended for troubleshooting. Release archives contain an APK and
-third-party license notices. Install the APK on your device.
+## Download
 
-On the first launch, select an Xbox Halo: Combat Evolved disc image
-(`.iso` or `.xiso`) that you own. The app extracts its `maps/` directory
-(approximately 1.8 GB), then starts the game. Copy the image to your device
-before opening the file picker. Saved games, maps, logs and `config.toml`
-are under `/sdcard/Android/data/com.halo.decomp/files/`.
+GitHub Actions builds the game for each commit. These links download the
+builds of the latest release:
 
-## Touch controls
+| Platform | Release | Debug |
+| --- | --- | --- |
+| Linux | [halo-linux-release.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-linux-release.zip) | [halo-linux-debug.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-linux-debug.zip) |
+| Windows | [halo-windows-release.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-windows-release.zip) | [halo-windows-debug.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-windows-debug.zip) |
+| Android | [halo-android-release.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-android-release.zip) | [halo-android-debug.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-android-debug.zip) |
+| Web | [halocombatevolved.com](https://halocombatevolved.com/) (or [halo-web-release.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-web-release.zip) for your own server) | [halo-web-debug.zip](https://github.com/OpenCommunityEdition/OpenCE/releases/latest/download/halo-web-debug.zip) |
 
-You can play without a physical controller. Multiple fingers can hold
-movement, aim and action controls at the same time.
+Use the release build to play. The debug build stops at the first failed
+assertion and writes it to the log. Use the debug build to find and report
+problems.
 
-| Control | Action |
+The game updates itself. At start-up it looks for a newer release, and asks
+if you want to install it. Refer to "Updates" in
+[port/linux/README.md](port/linux/README.md#updates). The web site offers
+each new build when it is out.
+
+Each build of the `main` branch that passes on all four platforms is a new
+release, and the web site then plays it. The [Releases](https://github.com/OpenCommunityEdition/OpenCE/releases)
+page keeps the last five releases. If the latest build has a problem, get
+an older build from that page.
+
+## Game data
+
+The port does not include the game data. Download an Xbox disc image
+(`.xiso` or `.iso`) of Halo: Combat Evolved. All versions of the game
+operate. The maps of the European (PAL) version were made for a slower
+console. The port changes them to play as the North American (NTSC) maps do,
+so players of the two versions can play together.
+
+1. Start the game.
+2. At the first start, the game asks for the disc image. Select it.
+3. The game extracts the `maps/` folder. Then the game starts.
+
+On Linux and Windows, the game puts `maps/` next to the executable. On
+Android, copy the disc image to the phone first. The app puts `maps/` in its
+data folder. Refer to [port/android/README.md](port/android/README.md). On
+the web, the page copies `maps/` out of the disc image into the browser's
+storage for the site; nothing is uploaded. Refer to
+[port/web/README.md](port/web/README.md).
+
+## Platforms
+
+Each platform has its own instructions:
+
+| Platform | Instructions |
 | --- | --- |
-| Left stick | Move |
-| Swipe the display | Look, including while holding an action button |
-| Fire (left and right) / Grenade | Fire weapon / throw grenade |
-| A / Jump | Jump / accept in menus |
-| B / Melee | Melee / back in menus |
-| X / Reload | Reload / interact |
-| Y / Weapon | Switch weapon |
-| Crouch / Zoom | Crouch / zoom |
-| Light / Gren. type | Flashlight / switch grenade type |
-| D-pad | Navigate menus |
-| Pause / Back | Controller Start / Back |
-| Hide / Touch | Hide / show the gameplay overlay |
+| Linux (32-bit x86 executable, OpenGL 4.5, SDL3) | [port/linux/README.md](port/linux/README.md) |
+| Windows (32-bit x86 executable, OpenGL 4.5, SDL3) | [port/windows/README.md](port/windows/README.md) |
+| Android (arm64 app, OpenGL ES 3, SDL3) | [port/android/README.md](port/android/README.md) |
+| Web (WebAssembly, WebGL 2, SDL3; desktop Chrome, Edge and Firefox) | [port/web/README.md](port/web/README.md) |
 
-Touch controls merge with the first physical controller for player 1.
-Bluetooth and USB controllers still work, including additional players.
-Touch inputs are released when you hide the controls or leave the app.
+The Linux README also gives the controls, the settings and the multiplayer
+functions. These are almost the same on all platforms.
 
-### Porting options
+## Multiplayer
 
-The main menu and the game pause menu include **Porting options**, with
-**Overlay settings**, **General** and **Cheats**. The main-menu entry replaces
-Quit at its original position and size; the pause frame extends below its extra entry.
+The game can play system link games on a local network and on the internet:
 
-The overlay uses cyan Halo-style vector icons. **Camera mode** changes camera
-mode with one tap and is editable from both menus. In flying mode, **Zoom**
-toggles player/camera control; swipe and gyro aim rotate the camera while its
-controls are active. Existing version 1–3 layouts migrate to version 4 while
-preserving positions and copies.
+- A system link game can have up to 128 players on up to 128 machines.
+- Linux, Windows and Android machines and browsers can play in the same
+  game. On a local network, the native builds play system link; browsers
+  play each other in rooms, over WebRTC
+  ([port/web/README.md](port/web/README.md)).
+- An invite link, or the server browser, lets a machine join a game on the
+  internet, browsers too: a native build takes a browser's WebRTC
+  ([port/linux/README.md](port/linux/README.md), "Browsers"). No server of
+  this project is necessary.
+- The netcode is new. Each machine moves its own player at once,
+  and the host makes the decisions for the game. Refer to
+  [port/linux/NETCODE.md](port/linux/NETCODE.md).
 
-**Overlay settings** lets you move, hide, add, duplicate and resize controls,
-adjust swipe look sensitivity, or select **Disable all overlay**. That toggle
-hides every Android overlay, including **Hide/Touch** and FPS. Direct menu
-taps and physical controllers remain available; use Porting options to restore
-the overlay. Opening the layout editor also restores it for editing.
-**Reset all buttons** restores the supplied October 3 layout and sizes.
-Existing saved layouts are retained until reset. **Export** and **Import** use
-Android's document picker for `.halolayout` files.
+## Build the game
 
-**General** contains **Rumble**, **Gyroscope**, independent **Gyroscope
-sensitivity**, **FPS counter** and **Field of view (FOV)**. FOV ranges from
-55 to 90 degrees (70 by default, measured in the engine's 4:3 camera space);
-the wider display expands horizontal view as usual, and weapon zoom is retained.
-Rumble defaults on; gyro and FPS default off. Sensitivity sliders range from
-0.25x to 4x; control sizes range from 50% to 200%.
+You do not need the Xbox SDK. The port supplies the SDK declarations that
+the game uses. Refer to [port/include/xdk](port/include/xdk/README.md).
 
-**Cheats** in the main menu selects **Startup cheats**. All sixteen start off.
-Selections are saved as executable commands in a marked section of
-`init.txt` under `/sdcard/Android/data/com.halo.decomp/files/`; other file
-contents are preserved. Flags apply when a player spawns at the start of each
-map, and selected instant actions run once per map. Teleport waits for a valid
-camera. These settings also survive app restarts. In the game pause menu,
-Cheats retains its existing live toggles and repeatable instant actions and
-never edits `init.txt`. Network clients retain the host's rules.
+To build the game:
 
-Version 3 layout exports include positions, visibility, copies, sizes, swipe
-and gyro sensitivity, rumble, gyro, FPS, FOV and the global overlay toggle.
-Older exports remain supported; missing FOV and overlay settings default to
-70 degrees and enabled overlays. Startup cheats stay in `init.txt`, separate
-from layout exports. Phone rumble, gyro and final GPU presentation require
-verification on Android hardware.
+1. Install Python and [ninja](https://ninja-build.org/).
+2. Install the tools for your platform. Refer to the README for the
+   platform.
+3. In the root folder of the repository, enter `python configure.py`.
+4. Enter `ninja` with the target for the platform:
 
-## Build
+| Target | Result |
+| --- | --- |
+| `ninja linux` | `build/linux/halo` |
+| `ninja windows` (on Windows) | `build/windows/halo.exe` and `SDL3.dll` |
+| `ninja android_apk` | `port/android/app/build/outputs/apk/debug/app-debug.apk` |
+| `ninja web` | `build/web/site/`, the web site (`python tools/web_serve.py` serves it) |
 
-Install Python, ninja, CMake, JDK 17+, the Android SDK (API 35) and NDK,
-and a clang with the `arm64_32` target. The first build downloads musl,
-SDL3, Gradle and the Android Gradle Plugin.
+If you enter `ninja` without a target, ninja builds the game for the
+computer that you use.
 
-On Windows, install Git for Windows too: its Bash runs the native build
-commands, and the Windows NDK compiler can build the guest and host.
-Set `ANDROID_HOME` to the SDK folder. Linux can also be used as a build host.
+`tools/ci_build.py` makes the same builds as GitHub Actions. For example,
+enter `python tools/ci_build.py linux release`.
 
-```sh
-python configure.py --release --pgo=off
-ninja android_apk
-```
+### Build options
 
-The installable APK is at
-`port/android/app/build/outputs/apk/debug/app-debug.apk`. This command uses
-the Gradle debug package with a release-mode native engine. For a full
-release package matching CI, run:
+Give these options to `configure.py`:
 
-```sh
-python tools/ci_build.py android release
-```
+| Option | Result |
+| --- | --- |
+| (none) | A debug build. A failed assertion stops the game. |
+| `--release` | A release build. The game does not examine assertions, as in the retail game. |
+| `--portable` | The Linux and Windows builds operate on all x86-64 processors. The Linux build also operates on older distributions and on SteamOS: refer to "Portable build" in [port/linux/README.md](port/linux/README.md#portable-build). Use this option for builds that you give to other persons. |
+| `--lto=thin`, `--lto=off` | Less link-time optimization. The link is faster. |
+| `--pgo=off` | No profile-guided optimization. |
+| `--pgo=train` | Records a new optimization profile. Refer to "Optimization profiles". |
+| `--profile` | A profiling build. It records CPU times. Refer to "Profiling builds". |
+| `--web-emcc PATH` | The Emscripten `emcc` for `ninja web` (else the one on the PATH, or `~/emsdk`'s). |
 
-Its APK and license notices are collected in `dist/halo-android-release/`.
-`python configure.py` builds an engine with assertions; `ninja android`
-builds only the native engine and libraries. `ninja` defaults to the APK.
-The inherited optimization profile requires clang 22+; `--pgo=off` disables it.
+Without `--portable`, the Linux and Windows builds use all the instructions
+of the processor that builds them (`-march=native`). Such a build does not
+always start on a different computer.
 
-Run the layout, file compatibility and gyroscope regression checks with:
+### Optimization profiles
 
-```sh
-python tools/test_touch_layout.py
-python tools/test_porting_actions.py
-python tools/test_menu_touch.py
-python tools/test_porting_ui.py
-python tools/test_startup_cheats_engine.py
-python tools/test_hud_layout_engine.py
-```
+The builds use profiles of the game to optimize the code:
 
-## Android-only source layout
+- `pgo/halo_linux.profdata` for Linux and Android.
+- `pgo/halo_windows.profdata` for Windows.
 
-The standalone Windows and Linux ports, their build targets and CI jobs
-have been removed. `port/shared/` contains the engine compatibility layer,
-renderer, networking and game changes that Android needs. Some internal
-identifiers retain their upstream `halo_linux` names for compatibility.
-The `android_windows_*.py` helpers build Android on a Windows computer;
-they do not build a Windows version of the game.
+The profiles need clang 22 or later. With an older clang, the builds do not
+use the profiles.
 
-See [Android setup, settings and troubleshooting](port/android/README.md),
-[shared engine settings](port/shared/README.md#settings) and
-[netcode details](port/shared/NETCODE.md).
+To record a new profile:
 
-## Multiplayer and updates
+1. Delete the profile.
+2. Enter `python configure.py --pgo=train`.
+3. Enter `ninja linux` or `ninja windows`.
 
-The inherited system link networking supports LAN play and internet invite
-links, and remains compatible with the upstream networking protocol.
-Official fork builds check releases of **theLlamaNet/halo-ce-android**.
-Local builds without a build number do not check for updates.
+The build then plays the main menu and the first minute of each campaign
+level. This procedure continues for approximately 15 minutes. The game
+data must be in `assets/`.
 
-GitHub Actions builds Android debug and release packages and keeps the APK
-artifacts for 14 days. Tags and GitHub releases are published manually.
-Configure the repository's
-`ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` secrets to keep a
-stable signing key across builds (key alias `halo`). Without them, each CI
-runner uses its own debug key, so its APK may not install over an earlier
-build. Keep signing keys and game data out of the repository.
+### Profiling builds
 
-## Automatic upstream synchronization
+A profiling build records where the game spends its time.
 
-[Sync upstream](https://github.com/theLlamaNet/halo-ce-android/actions/workflows/sync-upstream.yml)
-checks `cybersecurity/halo-ce-universal`'s `main` every 30 minutes and can also
-be started with **Run workflow**. GitHub may delay scheduled runs. Each run
-merges all new upstream commits into a temporary `codex/upstream-sync-*`
-branch, preserving the Android changes and the original commit history.
-The exact candidate must pass the sync regression tests, touch/gyro tests,
-and Android debug and release builds before the bot advances this fork's
-`main`. If `main` changes during validation, the next run starts from it.
+1. Enter `python configure.py --profile`, then build as usual.
+2. Start a recording. Enter `profile_record` in the console (or the telnet
+   console), or set `debug.profile_record = true` in `config.toml`. To
+   record each game of a session, also set
+   `debug.profile_record_when = "game"`.
+3. Stop the recording. Enter `profile_stop`, load another map, or quit.
 
-The policy in [upstream-sync-policy.json](.github/upstream-sync-policy.json)
-preserves this fork's workflows, README and sync helper, keeps removed
-desktop ports out, and recognizes the `port/linux` to `port/shared` move.
-Other code uses normal three-way merging. An unresolved source conflict or
-failed build stops the update and leaves `main` unchanged. The Actions run
-contains a JSON report; failed build candidates remain available for
-inspection. Resolve source conflicts on the fork and run the workflow
-again; incompatible source changes cannot safely be merged automatically.
+The game writes numbered `.part<n>.json` files under `profiles/` in its data root
+and logs their paths. Parts are retained after the recording stops. Logs go to
+standard error; a Windows release build without standard error writes them to
+`halo.log` next to `halo.exe`.
 
-Keep Actions enabled and allow the workflow token to write repository
-contents. Branch protection must allow the bot's normal fast-forward push
-to `main`; the workflow never force-pushes. No upstream tags are copied,
-and neither workflow creates tags or releases.
+`tools/net_report.py` is a helper for developers. Enter
+`python tools/net_report.py <recording.part1.json>` to read a recording
+as tables. The command also writes `<recording>.summary.txt`, a short text
+file.
 
-For a manual release, download the chosen build's APK artifacts and use a
-`build-<number>` tag on that exact commit. The number is the full-history
-commit count (`git rev-list --count <commit>`), or the `build_number`
-override supplied to **Android build / Run workflow**. Use a number greater
-than previously published versions. To support the in-app updater, attach
-`halo-android-debug.zip` and `halo-android-release.zip`, each containing its
-APK and notices at the ZIP root. Create these ZIPs without compression
-(stored entries) for compatibility with older updaters; mark the release
-as latest. Downloaded Actions artifact ZIPs should be repackaged this way.
+| Command | Result |
+| --- | --- |
+| `profile_record [seconds]` | Starts a recording. With a number of seconds, the recording stops after that time. |
+| `profile_stop` | Stops the recording. |
 
-## Online multiplayer
+`debug.profile_memory` sets the memory of a recording in MB (default 256,
+from 4 to 1024). A recording has no length limit:
+the game writes a part each time the memory is full. Refer to "Settings" in
+[port/linux/README.md](port/linux/README.md).
 
-Both players must use compatible builds. The host selects **Create Internet
-Game**, finishes creating the lobby and shares its current `halo://join/` link.
-The other player opens **Direct Link** or **Server Browser** and selects
-**PASTE LINK**. Keep the host game open while the guest connects. The connection
-status appears below the list; select the host's row once it is discovered.
-Your own invitation is for the other player and cannot be used to join yourself.
+On Android, the files are in `/sdcard/Android/data/com.halo.decomp/files/profiles/`.
+Enter `adb pull` to copy the recording parts to a computer.
 
-Server Browser searches LAN games and games reached through invitations. There
-is no global public server directory; an empty list without an invitation does
-not mean an invite connection has failed.
-
-Direct UDP remains the preferred transport. After a few seconds of failed
-hole punching, `network.relay_fallback = true` (default) sends the already
-ChaCha20-Poly1305 authenticated game packets through MQTT brokers, allowing
-mobile/strict NAT connections without forwarding a port. Session topics use
-separate keys for each direction, replay protection remains active, messages
-are never retained and queues are bounded. The client keeps probing UDP and
-switches to it when available. Set `network.relay_fallback = false` for UDP only.
-
-The default `network.signalling_brokers` are anonymous public testing services,
-without a game-service availability or latency guarantee. Sustained play should
-use your own reachable MQTT 3.1.1 broker (`host:port`, anonymous TCP supported
-by this client), configured identically on both devices. Networks must allow
-its TCP port (default 1883). The fallback adds TCP latency and does not create
-a public server listing.
-
-Regression checks: `python tools/test_multiplayer.py` runs actual C tunnel,
-cryptography, relay topic/queue/reconnection and browser-filter code in wasm.
-A real two-device mobile-network gameplay check remains necessary.
-
-## Known limitations
-
-- Bink videos are skipped.
-- The native engine requires fixed guest memory addresses below 4 GB.
-- Devices using 16 KB kernel pages are currently unsupported.
-- A full editor/gameplay test still requires an Android device.
-
-## Credits and license
-
-This fork builds on the Android port in
-[cybersecurity/halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal),
-which starts from [bnunu/halo-1](https://github.com/bnunu/halo-1), a fork of
-[punpckhdq/halo](https://github.com/punpckhdq/halo).
-The decompilation is based on Xbox build 2342 (`cachebeta.exe`).
-See [LICENSE.md](LICENSE.md) and the notices in `port/third_party/`.
+A profiling build plays with normal builds. It does not use
+`--pgo=train`.

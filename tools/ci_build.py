@@ -1,5 +1,28 @@
 #!/usr/bin/env python3
-"""Build and package Android: python tools/ci_build.py android release."""
+"""Builds one port in one configuration, as the GitHub workflow does
+(.github/workflows/build.yml), and collects what it built into dist/:
+
+    python tools/ci_build.py linux debug
+    python tools/ci_build.py android release
+    python tools/ci_build.py linux profile
+    python tools/ci_build.py web release
+
+Builds are portable (any x86-64 processor), so they run on other
+computers. Debug builds skip link-time and profile-guided optimisation,
+which only make the build slower; release builds use both, as a local
+release build does (profile-guided optimisation needs clang 22 or later,
+and is skipped with an older one). A profile build is a debug build with
+configure.py --profile, so that the profiling build is built too. CI_COMPILER_LAUNCHER (ccache, say) is
+passed on as --compiler-launcher. A build of the main branch gets the run's
+number (HALO_BUILD_NUMBER), which its release is named after and the
+self-updater compares (and the web site's version.json names).
+
+The web build (port/web/README.md) needs Emscripten (emcc on the PATH, as
+emsdk_env.sh puts it); dist/halo-web-<config>/ is the whole site, which a
+static host serves as it is: the workflow publishes the release build's to
+GitHub Pages.
+"""
+
 import argparse
 import os
 import shutil
@@ -9,62 +32,120 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# what each port's build leaves, and what goes into dist/
+OUTPUTS = {
+    # (and the SDL3 the portable build brings, tools/linux_build.py, with its
+    # zlib license, as the release carries the other libraries')
+    "linux": ["build/linux/halo", "build/linux/libSDL3.so.0", "build/linux/SDL3-LICENSE.txt"],
+    "windows": ["build/windows/halo.exe", "build/windows/SDL3.dll"],
+    "android": [],  # the APK, below
+    "web": [],  # the site, below
+}
+APKS = {
+    "debug": "port/android/app/build/outputs/apk/debug/app-debug.apk",
+    "release": "port/android/app/build/outputs/apk/release/app-release.apk",
+}
+
+
 def run(command, cwd=ROOT):
-    print("+", " ".join(map(str, command)), flush=True)
-    subprocess.run(list(map(str, command)), cwd=cwd, check=True)
+    print("+", " ".join(str(part) for part in command), flush=True)
+    subprocess.run([str(part) for part in command], cwd=cwd, check=True)
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("platform", choices=["android"])
-    parser.add_argument("config", choices=["debug", "release"])
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("platform", choices=sorted(OUTPUTS))
+    parser.add_argument("config", choices=["debug", "release", "profile"])
     args = parser.parse_args()
-    command = [sys.executable, "configure.py"]
-    if args.config == "release":
-        command.append("--release")
-    else:
-        command.append("--pgo=off")
-    if os.environ.get("CI_COMPILER_LAUNCHER"):
-        command += ["--compiler-launcher", os.environ["CI_COMPILER_LAUNCHER"]]
-    # Stable across the build and sync workflows; a fast-forward main only
-    # gains commits. Owners may override this for manually published releases.
-    if os.environ.get("GITHUB_ACTIONS") == "true":
-        number = os.environ.get("HALO_BUILD_NUMBER", "")
-        if not number.strip().isdigit():
-            number = subprocess.check_output(["git", "rev-list", "--count", "HEAD"], cwd=ROOT, text=True).strip()
-        if not number.isdigit() or not 1 <= int(number) <= 2100000000:
-            raise SystemExit("HALO_BUILD_NUMBER must be between 1 and 2100000000")
-        os.environ["HALO_BUILD_NUMBER"] = number
-        print("Android version code:", number, flush=True)
-        if os.environ.get("GITHUB_STEP_SUMMARY"):
-            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-                summary.write(f"Android {args.config}: version code **{number}**; manual release tag `build-{number}`.\n")
-    run(command)
-    run(["ninja", "android"])
-    if os.name == "nt":
-        run([sys.executable, "tools/android_windows_gradle.py", args.config])
-    else:
-        run(["./gradlew", "--console=plain", f"assemble{args.config.capitalize()}"], ROOT / "port/android")
-    dist = ROOT / "dist" / f"halo-android-{args.config}"
-    dist.mkdir(parents=True, exist_ok=True)
-    apk = ROOT / f"port/android/app/build/outputs/apk/{args.config}/app-{args.config}.apk"
-    shutil.copy2(apk, dist / apk.name)
-    for source, destination in [
-        ("extract-xiso/LICENSE.TXT", "extract-xiso-LICENSE.txt"),
-        ("miniupnpc/LICENSE", "miniupnpc-LICENSE.txt"),
-        ("stb/LICENSE", "stb-LICENSE.txt"),
-        ("monocypher/LICENCE.md", "monocypher-LICENCE.txt"),
-        ("expat/COPYING", "expat-COPYING.txt"),
-        # internet play's DTLS with browsers and voice chat's codec
-        ("mbedtls/LICENSE", "mbedtls-LICENSE.txt"),
-        ("opus/COPYING", "opus-COPYING.txt")
-    ]:
-        shutil.copy2(ROOT / "port/third_party" / source, dist / destination)
-    # voice chat's speaker icons, drawn into the menus' bitmaps
-    shutil.copy2(ROOT / "port/assets/icons/lucide/LICENSE", dist / "lucide-LICENSE.txt")
 
-    for license in (ROOT / "port/assets/fonts").glob("*-*.txt"):
-        if "LICENSE" in license.name or "OFL" in license.name:
-            shutil.copy2(license, dist / license.name)
+    configure = [sys.executable, "configure.py", "--portable"]
+    if args.config == "release":
+        configure.append("--release")
+    else:
+        configure += ["--lto=off", "--pgo=off"]
+    if args.config == "profile":
+        configure.append("--profile")
+    launcher = os.environ.get("CI_COMPILER_LAUNCHER")
+    if launcher:
+        configure += ["--compiler-launcher", launcher]
+    # a build of main knows its number, which names its release (build-<n>),
+    # for the self-updater (port/linux/src/updater.c, and the Android app);
+    # other builds have none, and never look for updates
+    if os.environ.get("GITHUB_REF") == "refs/heads/main" and os.environ.get("GITHUB_RUN_NUMBER", "").isdigit():
+        os.environ["HALO_BUILD_NUMBER"] = os.environ["GITHUB_RUN_NUMBER"]
+        print(f"build number {os.environ['HALO_BUILD_NUMBER']}", flush=True)
+    run(configure)
+
+    if args.platform == "web":
+        # the whole site (tools/web_build.py), its licences in licenses.txt
+        run(["ninja", "web"])
+        dist = ROOT / "dist" / f"halo-web-{args.config}"
+        if dist.exists():
+            shutil.rmtree(dist)
+        shutil.copytree(ROOT / "build/web/site", dist)
+        print(f"build/web/site -> {dist.relative_to(ROOT)}", flush=True)
+        return 0
+    if args.platform == "android":
+        # the native part, then the app around it (Gradle's variant of the
+        # same name: release is signed with the debug key, not debuggable)
+        run(["ninja", "android"])
+        gradlew = "gradlew.bat" if os.name == "nt" else "./gradlew"
+        variant = "release" if args.config == "release" else "debug"
+        run([gradlew, "--console=plain", "-q", f"assemble{variant.capitalize()}"], cwd=ROOT / "port/android")
+        outputs = [APKS[variant]]
+    else:
+        run(["ninja", args.platform])
+        outputs = OUTPUTS[args.platform]
+
+    dist = ROOT / "dist" / f"halo-{args.platform}-{args.config}"
+    if dist.exists():
+        shutil.rmtree(dist)
+    dist.mkdir(parents=True)
+    for output in outputs:
+        shutil.copy2(ROOT / output, dist)
+        print(f"{output} -> {dist.relative_to(ROOT)}", flush=True)
+    if args.platform == "windows":
+        # the symbols of halo.exe and SDL3.dll, apart (players do not need
+        # them): the workflow uploads them to Sentry, which turns the crash
+        # reports' minidumps into function names and lines
+        # (port/windows/src/win32_crash.c), and tools/symbolize_crash.py
+        # reads debug.txt's crash lines with them
+        symbols = ROOT / "dist" / f"halo-windows-{args.config}-symbols"
+        if symbols.exists():
+            shutil.rmtree(symbols)
+        symbols.mkdir(parents=True)
+        for pdb in [ROOT / "build/windows/halo.pdb", *sorted((ROOT / "build/windows/third_party").glob("SDL3-*/lib/x86/SDL3.pdb"))]:
+            shutil.copy2(pdb, symbols)
+            print(f"{pdb.relative_to(ROOT)} -> {symbols.relative_to(ROOT)}", flush=True)
+    # the disc image readers (port/linux/src/xiso.c, and the Android app's
+    # XisoExtractor.java) follow extract-xiso, whose license asks binaries
+    # to carry its notice
+    shutil.copy2(ROOT / "port/third_party/extract-xiso/LICENSE.TXT", dist / "extract-xiso-LICENSE.txt")
+    if args.platform != "web":
+        # internet play's DTLS with browsers, and the Linux self-updater's TLS
+        # (port/third_party/mbedtls), whose Apache license asks the same
+        shutil.copy2(ROOT / "port/third_party/mbedtls/LICENSE", dist / "mbedtls-LICENSE.txt")
+    # internet play's UPnP (port/third_party/miniupnpc), in every build,
+    # whose BSD license asks binaries to carry its notice
+    shutil.copy2(ROOT / "port/third_party/miniupnpc/LICENSE", dist / "miniupnpc-LICENSE.txt")
+    # the text's fonts (port/assets/fonts), embedded in every build, whose
+    # SIL Open Font License asks each copy to carry it
+    shutil.copy2(ROOT / "port/assets/fonts/Overpass-OFL.txt", dist / "Overpass-OFL.txt")
+    # the menus' XML parser (port/third_party/expat), in every build, whose
+    # MIT license asks copies to carry its notice
+    shutil.copy2(ROOT / "port/third_party/expat/COPYING", dist / "expat-COPYING.txt")
+    # voice chat's codec (port/third_party/opus), in every build, whose BSD
+    # license asks binaries to carry its notice
+    shutil.copy2(ROOT / "port/third_party/opus/COPYING", dist / "opus-COPYING.txt")
+    # voice chat's speaker icons (port/assets/icons/lucide, drawn into the
+    # menus' bitmaps), whose ISC license asks copies to carry its notice
+    shutil.copy2(ROOT / "port/assets/icons/lucide/LICENSE", dist / "lucide-LICENSE.txt")
+    # internet play's MQTT brokers, a file beside the game (network.brokers_file;
+    # Android's APK has its own copy)
+    if args.platform != "android":
+        shutil.copy2(ROOT / "port/assets/network/brokers.txt", dist / "brokers.txt")
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

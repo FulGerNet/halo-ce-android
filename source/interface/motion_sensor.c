@@ -802,7 +802,7 @@ void motion_sensor_tick(
 	}
 
 	/* The HUD is drawn once a frame, several frames per tick
-	(port/shared/game/render_interpolation.c), and each update moves the
+	(port/linux/game/render_interpolation.c), and each update moves the
 	blip history on a step: update once a tick, as on the Xbox. */
 	if (motion_sensor_globals->last_update_time != game_time_get())
 	motion_sensor_update();

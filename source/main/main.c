@@ -2423,7 +2423,7 @@ static boolean main_framerate_throttle_enabled(
 
 /* The native ports draw a frame whenever the display can show one, paced
 by vsync, and frames fall between the 30 Hz ticks
-(port/shared/game/render_interpolation.c): no vertical blank throttle, and
+(port/linux/game/render_interpolation.c): no vertical blank throttle, and
 the frame is timed with the performance counter. */
 static void main_update_time_unthrottled(
 	void)
@@ -3518,7 +3518,7 @@ static boolean main_loop_iteration(
 		{
 			render_frame = TRUE;
 
-			/* automated system link tests (port/shared/game/network_test.c) */
+			/* automated system link tests (port/linux/game/network_test.c) */
 			network_test_update(main_globals.main_menu_scenario_loaded, main_globals.seconds_elapsed);
 			/* port: voice chat, in the lobby and in game (port/linux/game/network_voice.c) */
 			network_voice_update();

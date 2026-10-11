@@ -4,7 +4,7 @@ The game's sources were written against the Xbox Development Kit (XDK):
 they include `xtl.h` and a few other SDK headers, and use its Win32 subset,
 Direct3D 8, DirectSound, Xbox networking and debug APIs. The native ports
 (Linux, Windows, Android) implement those APIs themselves
-(`port/shared/src`), so from the SDK they only need the *declarations*: the
+(`port/linux/src`), so from the SDK they only need the *declarations*: the
 types, structure layouts, constants and function prototypes. The SDK cannot
 be redistributed, so these headers stand in for it. They were written
 without the SDK's headers, from the sources below, and the native builds

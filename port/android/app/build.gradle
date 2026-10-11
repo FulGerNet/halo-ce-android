@@ -6,20 +6,11 @@ plugins {
 // native libraries (jniLibs) and the guest image (assets)
 def staged = new File(rootDir, "../../build/android")
 
-// Use the same commit-count fallback as tools/ci_build.py, including direct
-// Gradle builds. Resolve from the repository root, not the Android subproject.
-def buildNumberText = System.getenv("HALO_BUILD_NUMBER")?.trim()
-if (!buildNumberText?.isInteger()) {
-    def gitCount = providers.exec {
-        workingDir new File(rootDir, "../..")
-        commandLine "git", "rev-list", "--count", "HEAD"
-    }
-    buildNumberText = gitCount.standardOutput.asText.get().trim()
-}
-def buildNumber = buildNumberText.toInteger()
-if (buildNumber < 1 || buildNumber > 2100000000) {
-    throw new GradleException("HALO_BUILD_NUMBER must be between 1 and 2100000000")
-}
+// a build of main knows its number (tools/ci_build.py), which names its
+// release and which the self-updater (Updater.java) compares; others have
+// none and never look for updates
+def buildNumberText = System.getenv("HALO_BUILD_NUMBER") ?: "0"
+def buildNumber = buildNumberText.isInteger() ? buildNumberText.toInteger() : 0
 
 // the workflow's signing key (.github/workflows/build.yml): every build of
 // main signed with it can install over the one before; without it, the
@@ -35,7 +26,7 @@ android {
         minSdk 28
         targetSdk 35
         versionCode Math.max(1, buildNumber)
-        versionName "4.0"
+        versionName buildNumber > 0 ? "build " + buildNumber : "1.0"
         buildConfigField "int", "HALO_BUILD_NUMBER", "${buildNumber}"
         ndk {
             abiFilters "arm64-v8a"

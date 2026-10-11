@@ -3,7 +3,7 @@ CACHE_FILE_REPORT.C
 
 Reports what the native builds can do with Halo 1 map files: which format
 each file is, whether it can be loaded, and why not
-(port/shared/game/cache_file_formats.c; docs/custom_edition_caches.md).
+(port/linux/game/cache_file_formats.c; docs/custom_edition_caches.md).
 
 	cache_file_report [--maps DIRECTORY] [--dump-tags FILE] FILE...
 

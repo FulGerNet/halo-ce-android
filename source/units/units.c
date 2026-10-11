@@ -979,7 +979,7 @@ static void unit_cause_continuous_melee_damage(long unit_index);
 
 static long unit_get_weapon(struct unit_datum *unit, short index);
 static void unit_drop_item(long unit_index, long item_index);
-/* port/shared/game/network_objects.c's */
+/* port/linux/game/network_objects.c's */
 boolean network_objects_creating_host_object(void);
 /* port/linux/game/network_damage.c's */
 void network_damage_note_grenade(long unit_index, short grenade_type);
@@ -2463,7 +2463,7 @@ static void unit_add_initial_weapons(
 	struct unit_definition *unit_definition = unit_definition_get(unit->definition_index);
 
 	/* (a client of the distributed netcode making the host's unit: its
-	weapons are the host's objects, port/shared/game/network_objects.c) */
+	weapons are the host's objects, port/linux/game/network_objects.c) */
 	if (network_objects_creating_host_object())
 		return;
 	for (initial_weapon_index = 0;
@@ -12463,7 +12463,7 @@ static boolean unit_integrated_night_vision_is_active(
 
 /* Verify the public seat-helper declaration without perturbing this legacy
  * translation unit's authenticated function-declaration order. */
-/* the distributed netcode (port/shared/game/network_objects.c): a client's
+/* the distributed netcode (port/linux/game/network_objects.c): a client's
 unit carries the host's weapons, the same objects, moved in and out as the
 host's unit had them (the host has applied the game's rules) */
 

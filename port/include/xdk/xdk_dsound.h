@@ -111,7 +111,7 @@ channel (0x5bade7). */
 #define DSSTREAMCAPS_CTRL3D 0x00000010
 
 /* IDirectSoundStream_Pause's argument. The game never pauses a stream and
-the binary has no use of it; only port/shared/src/dsound_sdl.c interprets
+the binary has no use of it; only port/linux/src/dsound_sdl.c interprets
 it. Resume 0, pause 1 (agrees with Cxbx-Reloaded, cross-check only). */
 #define DSSTREAMPAUSE_RESUME 0x00000000
 #define DSSTREAMPAUSE_PAUSE 0x00000001
@@ -143,7 +143,7 @@ with Cxbx-Reloaded, cross-check only). */
 /* The stream's media object methods, called through its vtable
 (IDirectSoundStreamVtbl, from cachebeta.pdb).
 Source: cachebeta.exe has no functions of these names: the game calls
-through lpVtbl, and port/shared/src/dsound_sdl.c implements them as the
+through lpVtbl, and port/linux/src/dsound_sdl.c implements them as the
 vtable's entries. The ones with their own entry points (SetVolume,
 SetMixBins, ...) are prototyped in xdk_pdb.h. */
 #define IDirectSoundStream_AddRef(stream) \

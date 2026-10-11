@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The Android fork's Porting options art (tools/porting_assets.py) -->
+<!-- The Android app's Porting options art (tools/porting_assets.py) -->
 <menus>
-	<bitmap name="porting/menu_porting_options">
+	<bitmap name="porting/menu_porting_options" platform="android">
 		<frame png="ce/port/porting/menu_porting_options__0.png" width="512" height="64"/>
 		<frame png="ce/port/porting/menu_porting_options__1.png" width="512" height="64"/>
 	</bitmap>
-	<bitmap name="porting/font">
+	<bitmap name="porting/font" platform="android">
 		<frame png="ce/port/porting/font__00.png" width="22" height="28"/>
 		<frame png="ce/port/porting/font__01.png" width="23" height="28"/>
 		<frame png="ce/port/porting/font__02.png" width="21" height="28"/>

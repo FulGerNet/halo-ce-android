@@ -14,7 +14,7 @@ and checksum of its pixels, from port/assets/hud/layout.json,
 port/assets/titles/titles.json and port/assets/buttons/buttons.json), the
 fonts and their tags from port/assets/fonts/fonts.json, the menu files
 listed in port/assets/menus/menus.json, and SMAA's shader and lookup
-textures, as port/shared/src/hud_hires.h, text_hires.h, menu_files.h and
+textures, as port/linux/src/hud_hires.h, text_hires.h, menu_files.h and
 xgpu_post.c declare them. The builds generate it
 (hud_assets_build, called by tools/linux_build.py, windows_build.py and
 android_build.py), so the assets are the committed source and Android needs
@@ -42,11 +42,11 @@ FONT_ASSETS = Path("port/assets/fonts")
 FONT_LIST = FONT_ASSETS / "fonts.json"
 MENU_ASSETS = Path("port/assets/menus")
 MENU_LIST = MENU_ASSETS / "menus.json"
-# SMAA's files and the names port/shared/src/xgpu_post.c declares them by
+# SMAA's files and the names port/linux/src/xgpu_post.c declares them by
 SMAA_ASSETS = Path("port/third_party/smaa")
 SMAA_FILES = (("SMAA.hlsl", "xgpu_smaa_shader"), ("area_tex.zlib", "xgpu_smaa_area_texture"),
               ("search_tex.zlib", "xgpu_smaa_search_texture"))
-# the desktop windows' icon (tools/app_icon.py; port/shared/src/sdl_platform.c)
+# the desktop windows' icon (tools/app_icon.py; port/linux/src/sdl_platform.c)
 WINDOW_ICON = Path("port/assets/icon/opence-icon-256.png")
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -76,6 +76,15 @@ def menu_files() -> List[str]:
     if not (ROOT / MENU_LIST).is_file():
         return []
     return json.loads((ROOT / MENU_LIST).read_text())["files"]
+
+
+def android_menu_files() -> List[str]:
+    """Those of the menus' files that only the Android build embeds
+    (menus.json's android_files: the app's Porting options art,
+    tools/porting_assets.py)."""
+    if not (ROOT / MENU_LIST).is_file():
+        return []
+    return json.loads((ROOT / MENU_LIST).read_text()).get("android_files", [])
 
 
 def smaa_files() -> List[tuple]:
@@ -131,7 +140,7 @@ def hud_assets_build(n: Any, prefix: str, output: Path) -> List[Path]:
 
 def png_size(data: bytes, name: str) -> tuple:
     """The width and height of an 8-bit RGBA, non-interlaced PNG (the only
-    kind port/shared/src/hud_hires.c reads)."""
+    kind port/linux/src/hud_hires.c reads)."""
     if data[:8] != PNG_SIGNATURE or data[12:16] != b"IHDR":
         sys.exit(f"{name}: not a PNG")
     width, height, depth, colour, _, _, interlace = struct.unpack(">IIBBBBB", data[16:29])
@@ -205,23 +214,41 @@ def main() -> None:
     lines.append('#include "menu_files.h"')
     lines.append("")
     menus = menu_files()
+    # (the Android app's own are in its build only)
+    android_only = set(android_menu_files())
     for index, name in enumerate(menus):
         data = (ROOT / MENU_ASSETS / name).read_bytes()
         if name.endswith(".png"):
             png_size(data, name)
+        if name in android_only:
+            lines.append("#ifdef HALO_ANDROID")
         lines.append(f"static const unsigned int menu{index}[] = {{")
         lines.extend(words(data))
         lines.append("};")
+        if name in android_only:
+            lines.append("#endif")
         lines.append("")
     lines.append("const struct menu_file_embedded menu_files_embedded[] =")
     lines.append("{")
     for index, name in enumerate(menus):
         size = (ROOT / MENU_ASSETS / name).stat().st_size
+        if name in android_only:
+            lines.append("#ifdef HALO_ANDROID")
         lines.append(f'\t{{ "{name}", menu{index}, {size} }},')
-    if not menus:
+        if name in android_only:
+            lines.append("#endif")
+    if len(menus) == len(android_only & set(menus)):
         lines.append("\t{ 0 },")
     lines.append("};")
-    lines.append(f"const unsigned int menu_files_embedded_count = {len(menus)};")
+    everywhere = len([name for name in menus if name not in android_only])
+    if everywhere != len(menus):
+        lines.append("#ifdef HALO_ANDROID")
+        lines.append(f"const unsigned int menu_files_embedded_count = {len(menus)};")
+        lines.append("#else")
+        lines.append(f"const unsigned int menu_files_embedded_count = {everywhere};")
+        lines.append("#endif")
+    else:
+        lines.append(f"const unsigned int menu_files_embedded_count = {len(menus)};")
     lines.append("")
     # SMAA's shader, as text a GLSL compiler takes (ASCII, ending in a NUL),
     # and its lookup textures (xgpu_post.c); each of size 0 that the

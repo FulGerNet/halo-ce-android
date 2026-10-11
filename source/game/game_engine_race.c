@@ -1582,7 +1582,7 @@ struct game_engine race_engine =
 
 /* ---------- private code */
 
-/* the distributed netcode (port/shared/game/network_distributed.c): the game
+/* the distributed netcode (port/linux/game/network_distributed.c): the game
 type's state the host sends its clients, which take it as it is (not
 whether this machine has added its race vehicles, nor the track's flags,
 which it has from the map as the host has) */

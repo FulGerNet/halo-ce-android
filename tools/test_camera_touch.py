@@ -18,7 +18,7 @@ while depth:
     depth+=(source[query_end]=='{')-(source[query_end]=='}');query_end+=1
 query=source[query_match.start():query_end]
 player_source=(root/'source/game/player_control.c').read_text()
-condition=re.search(r'if \(\s*#ifdef HALO_ANDROID\s*!director_flying_controls_active.*?halo_linux_mouse_look\(gamepad_index, &mouse_yaw, &mouse_pitch\)\)',player_source,re.S).group(0)
+condition=re.search(r'if \(\s*!director_flying_controls_active.*?halo_linux_mouse_look\(gamepad_index, &mouse_yaw, &mouse_pitch\)\)',player_source,re.S).group(0)
 player_poll='void poll_player_look(void){short local_player_index=0,gamepad_index=0;real mouse_yaw,mouse_pitch;'+condition+'{player_yaw+=mouse_yaw;player_pitch+=mouse_pitch;}}'
 code=r'''
 #define HALO_ANDROID 1
@@ -108,6 +108,6 @@ int run_tests(void){
 '''
 (out/'test.c').write_text(code)
 ndk=Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
-subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
+subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-DHALO_ANDROID=1','-std=c99','-ffreestanding','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
 subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/'test.o'),'-o',str(out/'test.wasm')],check=True)
 wasm_test.check(out/'test.wasm', 'Camera', 'Camera tap, held grenade compatibility, flying swipe, Zoom ownership and movement passed')

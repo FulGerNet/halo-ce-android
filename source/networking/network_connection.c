@@ -218,7 +218,7 @@ symbols in this file:
 /* the client connections a server accepts: one per machine, the host's own
 included. The Xbox game uses the split screen player count (4), which is
 also its machine count; the native builds use their machine limit
-(port/shared/include/halo_port_limits.h). */
+(port/linux/include/halo_port_limits.h). */
 #define NETWORK_CONNECTION_MAXIMUM_CLIENTS HALO_PORT_MAXIMUM_NETWORK_MACHINES
 
 enum

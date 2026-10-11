@@ -193,7 +193,7 @@ polling while it is 0 and gives up on 1, and the XNet library in the same
 binary returns 1 before start-up, otherwise 0 or one of the bits 0x02,
 0x04, 0x08, 0x10 for how the address was obtained (plus 0x20). Which of
 those bits means Ethernet and which DHCP is the platform layer's own choice
-(port/shared/src/xnet.c is the only code that reports them, and the game
+(port/linux/src/xnet.c is the only code that reports them, and the game
 tests neither); any two distinct bits of that set work. */
 #define XNET_GET_XNADDR_PENDING 0x00
 #define XNET_GET_XNADDR_NONE 0x01

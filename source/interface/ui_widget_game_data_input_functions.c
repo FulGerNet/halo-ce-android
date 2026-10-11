@@ -369,7 +369,7 @@ enum
 
 enum
 {
-	/* the native builds' session limit (port/shared/include/halo_port_limits.h) */
+	/* the native builds' session limit (port/linux/include/halo_port_limits.h) */
 	MAXIMUM_NETWORK_MACHINE_COUNT = HALO_PORT_MAXIMUM_NETWORK_MACHINES,
 	MAXIMUM_NETWORK_ADVERTISED_GAMES = 9,
 };
@@ -525,7 +525,7 @@ typedef char network_advertised_game_platform_offset_assert[
 typedef char network_machine_size_assert[
 	sizeof(struct network_machine) == 0x44 ? 1 : -1];
 /* the native builds' session limits move the players; every copy of the
-record is checked against port/shared/include/halo_port_limits.h (this one
+record is checked against port/linux/include/halo_port_limits.h (this one
 declares it only up to the players) */
 typedef char network_game_players_offset_assert[
 	offsetof(struct network_game, players) == HALO_PORT_NETWORK_GAME_PLAYERS_OFFSET ? 1 : -1];

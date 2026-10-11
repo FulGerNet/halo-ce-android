@@ -679,7 +679,7 @@ void rasterizer_lights_begin_for_new_frame(
 				byte previous_visibility= *occlusion_test_result;
 
 				/* The native builds draw several frames per tick
-				(port/shared/game/render_interpolation.c): move a quarter of the
+				(port/linux/game/render_interpolation.c): move a quarter of the
 				way up and half of the way down per 30 Hz tick, not per frame,
 				at least a step a frame for as long as a tick's step would still
 				move it. */

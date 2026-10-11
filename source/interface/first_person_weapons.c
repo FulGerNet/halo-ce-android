@@ -383,7 +383,7 @@ static short first_person_weapon_index_from_weapon_index(
 static short first_person_weapon_index_from_unit_index(
 	long unit_index);
 
-/* port/shared/game/pal_tags.c's */
+/* port/linux/game/pal_tags.c's */
 boolean pal_tags_first_person_advance(short local_player_index, long graph_index, short animation_index,
 	short frame_index);
 real pal_tags_first_person_fraction(short local_player_index, long graph_index, short animation_index,
@@ -1206,7 +1206,7 @@ static void first_person_weapon_build_node_matrices(
 					/* port: a PAL map's animation, slowed to the NTSC maps' pace,
 					between the frame it is on and the next: held on the frame, it
 					stood still for that tick, and a reload moved in fits and starts
-					(port/shared/game/pal_tags.c) */
+					(port/linux/game/pal_tags.c) */
 					{
 						real fraction= pal_tags_first_person_fraction(
 							local_player_index,
@@ -1854,7 +1854,7 @@ static void first_person_weapon_update(
 		}
 
 		/* port: a PAL map's first-person animation at the NTSC maps' pace,
-		which the weapon's timing keeps (port/shared/game/pal_tags.c) */
+		which the weapon's timing keeps (port/linux/game/pal_tags.c) */
 		if (!pal_tags_first_person_advance(local_player_index,
 			weapon_definition->weapon.interface_definition.first_person_animations.index,
 			first_person_weapon->state_animation.index, first_person_weapon->state_animation.frame_index))

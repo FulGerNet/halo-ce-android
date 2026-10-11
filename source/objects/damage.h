@@ -63,7 +63,7 @@ struct damage_data
 };
 
 /* an object's vitality and recent damage, as the distributed netcode's host
-sends them (port/shared/game/network_distributed.c) */
+sends them (port/linux/game/network_distributed.c) */
 struct damage_network_state
 {
 	boolean shield_depleted;

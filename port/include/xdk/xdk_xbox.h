@@ -113,7 +113,7 @@ its record, and the game passes 32 to XFindFirstNicknameW. */
 /* ---------- functions */
 
 /* The input library's device type tables (see XDEVICE_TYPE_*): data
-symbols of cachebeta.exe; port/shared/src/xinput_sdl.c defines them for
+symbols of cachebeta.exe; port/linux/src/xinput_sdl.c defines them for
 the native ports. */
 extern XPP_DEVICE_TYPE XDEVICE_TYPE_GAMEPAD_TABLE;
 extern XPP_DEVICE_TYPE XDEVICE_TYPE_MEMORY_UNIT_TABLE;

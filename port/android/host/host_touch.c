@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-#include "../../shared/include/halo_porting_ui.h"
+#include "../../linux/include/halo_porting_ui.h"
 
 static pthread_mutex_t touch_lock = PTHREAD_MUTEX_INITIALIZER;
 static int32_t touch_state[7]; /* SDL axes followed by SDL button bits */
@@ -359,7 +359,7 @@ void host_touch_read(int32_t *state)
 	pthread_mutex_unlock(&touch_lock);
 }
 
-/* Upstream's touch controls (port/shared/src/touch_input.c) publish the scene
+/* The touch controls of port/linux/src/touch_input.c publish the scene
    and the profile's bindings. This overlay tracks the menus through
    host_touch_ui_context and draws icons, so both are accepted and unused. */
 void host_touch_scene(int scene)

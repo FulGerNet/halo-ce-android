@@ -818,7 +818,7 @@ static void particle_system_new_particles(
 	{
 		/* cut short at the rate of 0.3 a tick, not a frame: the native
 		builds update several frames a tick
-		(port/shared/game/render_interpolation.c) */
+		(port/linux/game/render_interpolation.c) */
 		type->time_left_in_state *= (real)pow(0.30000001f, delta_time * TICKS_PER_SECOND);
 	}
 

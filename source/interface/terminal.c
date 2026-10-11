@@ -314,7 +314,7 @@ boolean terminal_update(
 	return result;
 }
 
-/* port/shared/src/port_config.c's */
+/* port/linux/src/port_config.c's */
 const char *config_string(const char *name);
 
 boolean terminal_command_running = FALSE;
@@ -456,7 +456,7 @@ static void terminal_update_output(
 	struct output_line_datum *line;
 	long line_index = terminal_globals.newest_output_line_index;
 	/* This runs once a frame, several frames per tick on the native builds
-	(port/shared/game/render_interpolation.c): count the line timers in 30 Hz
+	(port/linux/game/render_interpolation.c): count the line timers in 30 Hz
 	ticks of real time, as they counted on the Xbox, not in frames. */
 	static real leftover_ticks = 0.f;
 	long ticks;

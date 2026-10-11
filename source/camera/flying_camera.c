@@ -85,7 +85,7 @@ void flying_camera_update(
     /* Direct touch deltas already describe the user's movement this frame. */
     result->timer = controls->active ? 0.0f : 0.3f;
 #else
-    result->timer = 0.3f;
+	result->timer = 0.3f;
 #endif
 	vector3d_from_euler_angles2d(&result->forward, &camera->facing);
 	observer_up_from_forward(&result->forward, &result->up);

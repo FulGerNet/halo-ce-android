@@ -2,7 +2,7 @@
 BMP_FILE_REPORT.C
 
 Reports whether the native builds read a picture file
-(port/shared/game/bmp_files.c), for the tests (tools/test_bmp_files.py).
+(port/linux/game/bmp_files.c), for the tests (tools/test_bmp_files.py).
 
 	bmp_file_report [--fit WIDTH HEIGHT SHAPE_WIDTH SHAPE_HEIGHT OUTPUT] FILE
 

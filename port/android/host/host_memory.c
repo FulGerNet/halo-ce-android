@@ -14,7 +14,7 @@ guest needs, when it needs it:
   thread stacks), reserved in free gaps below 4 GB as they fill up.
 
 This file also implements guest memory write tracking (the interface of
-port/shared/src/memory_watch.c): the renderer write-protects the pages behind
+port/linux/src/memory_watch.c): the renderer write-protects the pages behind
 the textures it caches, and the SIGSEGV handler here records the first
 write to each. Other faults are reported (with guest-relative addresses) and
 passed on to the previous handler. Under ARM translation (the x86 emulator)
@@ -830,7 +830,7 @@ long host_guest_mprotect(uint64_t address, uint64_t size, int protection)
 	return mprotect((void *)address, size, protection) ? -errno : 0;
 }
 
-/* ---------- write tracking (port/shared/src/memory_watch.c) */
+/* ---------- write tracking (port/linux/src/memory_watch.c) */
 
 #define WATCH_PAGE_COUNT (HALO_GUEST_WINDOW_SIZE / PAGE)
 

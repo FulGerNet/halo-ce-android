@@ -120,7 +120,7 @@ symbols in this file:
 
 enum
 {
-	/* the native builds' session limits (port/shared/include/halo_port_limits.h) */
+	/* the native builds' session limits (port/linux/include/halo_port_limits.h) */
 	MAXIMUM_NUMBER_OF_PLAYERS = HALO_PORT_MAXIMUM_NETWORK_PLAYERS,
 	MAXIMUM_NETWORK_MACHINE_COUNT = HALO_PORT_MAXIMUM_NETWORK_MACHINES,
 
@@ -248,7 +248,7 @@ in only one packet between two of the host's ticks would be lost. Every
 button seen since the host's last tick stays down for the next. */
 static unsigned long update_server_pending_control_flags[MAXIMUM_NUMBER_OF_PLAYERS];
 
-/* the distributed netcode (port/shared/NETCODE.md): the latest action the
+/* the distributed netcode (port/linux/NETCODE.md): the latest action the
 host relayed for each player, the update it is of, and the buttons of every
 relayed update since this client's last tick */
 static struct
@@ -595,7 +595,7 @@ void update_client_add_player(
 }
 
 /* The native builds draw several frames per 30 Hz tick
-(port/shared/game/render_interpolation.c) and build an action every frame, and
+(port/linux/game/render_interpolation.c) and build an action every frame, and
 only the last one before a tick reaches it: a button pressed and released
 between two ticks, or a press seen only on its first frame (zoom, grenade
 and weapon switches), would be lost. Every control held on any frame since
@@ -682,7 +682,7 @@ static short update_client_local_player_index(
 	return NONE;
 }
 
-/* the distributed netcode's tick (port/shared/NETCODE.md): this machine's
+/* the distributed netcode's tick (port/linux/NETCODE.md): this machine's
 players from its own input at once, the others from what the host last
 relayed */
 static boolean update_client_dequeue_distributed(

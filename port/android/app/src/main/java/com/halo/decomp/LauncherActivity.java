@@ -68,7 +68,7 @@ public class LauncherActivity extends Activity {
 
     /**
      * An internet play invite link the app was opened with: the game
-     * (port/shared/src/p2p.c) picks it up from join_link.txt, whether it is
+     * (port/linux/src/p2p.c) picks it up from join_link.txt, whether it is
      * starting now or already running.
      */
     private void passOnInvite(Intent intent) {
@@ -92,7 +92,7 @@ public class LauncherActivity extends Activity {
     /**
      * This device's ANDROID_ID (the app's own: one per app signing key and
      * user, until a factory reset), which native code cannot read: the game
-     * (port/shared/src/p2p.c) hashes it from hardware_id.txt into the
+     * (port/linux/src/p2p.c) hashes it from hardware_id.txt into the
      * hardware id a host it joins is told.
      */
     private void passOnHardwareId() {

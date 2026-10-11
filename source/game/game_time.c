@@ -75,8 +75,8 @@ symbols in this file:
 #include "networking/network_game_globals.h"
 #include "networking/network_server_manager.h"
 #include "saved games/game_state.h"
-#include "profile_sections.h" /* port: port/shared/include/profile_sections.h */
-/* port/shared/game/network_distributed.c's */
+#include "profile_sections.h" /* port: port/linux/include/profile_sections.h */
+/* port/linux/game/network_distributed.c's */
 void network_distributed_tick(void);
 
 /* port: the tick loop's steps, timed in the profiling build */
@@ -273,7 +273,7 @@ void game_time_set_paused(
 }
 
 /* how far the clock has run into the next tick, 0 to 1: the native ports
-draw frames between ticks (port/shared/game/render_interpolation.c) */
+draw frames between ticks (port/linux/game/render_interpolation.c) */
 real game_time_get_tick_fraction(
 	void)
 {
@@ -388,7 +388,7 @@ void game_time_update(
 		real ticks_per_second = game_time_globals->speed*TICKS_PER_SECOND;
 
 		/* The native builds draw several frames per tick
-		(port/shared/game/render_interpolation.c). A frame that runs no tick has
+		(port/linux/game/render_interpolation.c). A frame that runs no tick has
 		elapsed no game time: without this, the ticks of the last frame that
 		ran some would count again on every frame after it, and whatever
 		advances by game_time_get_elapsed() once a frame (chapter titles, HUD

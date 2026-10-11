@@ -39,7 +39,7 @@ xdk_pdb.h agree. */
 #define NTAPI __stdcall
 #define PASCAL __stdcall
 /* APIENTRY is WINAPI (learn.microsoft.com, "Windows Data Types"; mingw-w64
-minwindef.h, public domain). The platform's OpenGL header (port/shared/src/gl.h)
+minwindef.h, public domain). The platform's OpenGL header (port/linux/src/gl.h)
 relies on it: with APIENTRY defined, SDL's OpenGL header does not include
 the host's windows.h on Windows. */
 #define APIENTRY WINAPI
@@ -68,11 +68,11 @@ UNICODE (learn.microsoft.com, "Conventions for Function Prototypes"). */
 
 /* The current thread's pseudo handle (learn.microsoft.com,
 GetCurrentThread). The platform layer treats -1 and -2 as the process and
-thread pseudo handles (port/shared/src/xbox_kernel.c). */
+thread pseudo handles (port/linux/src/xbox_kernel.c). */
 #define GetCurrentThread() ((HANDLE)(LONG)-2)
 
 /* Critical sections are the kernel's Rtl* routines (see the functions below
-and port/shared/src/xbox_kernel.c). */
+and port/linux/src/xbox_kernel.c). */
 #define InitializeCriticalSection RtlInitializeCriticalSection
 #define EnterCriticalSection RtlEnterCriticalSection
 #define LeaveCriticalSection RtlLeaveCriticalSection
@@ -211,7 +211,7 @@ cachebeta.exe's physical_memory_allocate passes 4 (PAGE_READWRITE) and
 /* ---------- functions */
 
 /* Critical sections: kernel routines whose definitions are in
-port/shared/src/xbox_kernel.c (the structure is the PDB's, in xdk_pdb.h) */
+port/linux/src/xbox_kernel.c (the structure is the PDB's, in xdk_pdb.h) */
 VOID NTAPI RtlInitializeCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);
 VOID NTAPI RtlEnterCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);
 VOID NTAPI RtlLeaveCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);
@@ -219,7 +219,7 @@ DWORD NTAPI RtlTryEnterCriticalSection(PRTL_CRITICAL_SECTION CriticalSection);
 
 /* Interlocked operations (learn.microsoft.com, InterlockedIncrement and
 the rest; argument order as documented), declared as the platform layer
-defines them (port/shared/src/xbox_kernel.c). The PDB records the Xbox's
+defines them (port/linux/src/xbox_kernel.c). The PDB records the Xbox's
 own as __fastcall; the game never calls them. */
 LONG WINAPI _InterlockedIncrement(LPLONG Addend);
 LONG WINAPI _InterlockedDecrement(LPLONG Addend);

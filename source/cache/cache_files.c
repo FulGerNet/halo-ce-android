@@ -591,7 +591,7 @@ char const *cache_files_map_directory(
 void scenario_tags_unload(
 	void)
 {
-	/* port: the high-res HUD forgets this map's bitmaps (port/shared/game/hud_hires_tags.c) */
+	/* port: the high-res HUD forgets this map's bitmaps (port/linux/game/hud_hires_tags.c) */
 	{
 		extern void hud_hires_tags_unloaded(void);
 
@@ -607,7 +607,7 @@ void scenario_tags_unload(
 	}
 	texture_cache_close();
 	/* port: the menus' tags go, and the map's own table comes back
-	(port/shared/game/menu_tags.c): after the texture cache, which writes to
+	(port/linux/game/menu_tags.c): after the texture cache, which writes to
 	the bitmaps it has loaded as it closes, theirs among them */
 	{
 		extern void menu_tags_unloaded(void);
@@ -629,7 +629,7 @@ void scenario_tags_unload(
 }
 
 /* port: the loaded tags' table, and its tags' count, for the menus' tags
-(port/shared/game/menu_tags.c), which a copy with theirs added replaces */
+(port/linux/game/menu_tags.c), which a copy with theirs added replaces */
 void *cache_files_tag_instances(
 	long *count)
 {
@@ -926,7 +926,7 @@ boolean cache_file_header_verify(
 multiplayer with the others; a map of another build may differ in what
 machines send each other, so its players cannot open the multiplayer menu
 (ui_widget.c, ui_widget_launch_widget). A PAL build's maps are played as the
-NTSC maps are (port/shared/game/pal_tags.c) */
+NTSC maps are (port/linux/game/pal_tags.c) */
 static struct
 {
 	char const *build;
@@ -1278,26 +1278,26 @@ long scenario_tags_load(
 			global_tag_count = cache_file_globals.tag_header->tag_count;
 			tags_header_register_vertex_and_index_buffers(cache_file_globals.tag_header);
 			cache_file_globals.tags_loaded = TRUE;
-			/* port: a PAL map played as the NTSC maps are (port/shared/game/pal_tags.c) */
+			/* port: a PAL map played as the NTSC maps are (port/linux/game/pal_tags.c) */
 			{
 				extern void pal_tags_loaded(char const *build);
 
 				pal_tags_loaded(cache_file_globals.header.build);
 			}
 			/* port: the powerups' render spheres, grown to hold their meshes
-			(port/shared/game/powerup_render_bounds.c) */
+			(port/linux/game/powerup_render_bounds.c) */
 			{
 				extern void powerup_render_bounds_tags_loaded(void);
 
 				powerup_render_bounds_tags_loaded();
 			}
-			/* port: the menus' tags, added to the map's (port/shared/game/menu_tags.c) */
+			/* port: the menus' tags, added to the map's (port/linux/game/menu_tags.c) */
 			{
 				extern void menu_tags_loaded(char const *map_name);
 
 				menu_tags_loaded(cache_file_globals.header.name);
 			}
-			/* port: the bitmaps the high-res HUD stands for (port/shared/game/hud_hires_tags.c) */
+			/* port: the bitmaps the high-res HUD stands for (port/linux/game/hud_hires_tags.c) */
 			{
 				extern void hud_hires_tags_loaded(void);
 
@@ -1518,7 +1518,7 @@ void *tag_get(
 
 /* whether the index is a loaded tag of the group (or a group it inherits
 from): the distributed netcode names tags another machine sent
-(port/shared/game/network_damage.c), which tag_get would only assert on */
+(port/linux/game/network_damage.c), which tag_get would only assert on */
 boolean tag_index_is_group(
 	long tag_index,
 	long group_tag)

@@ -369,7 +369,7 @@ void contrails_update(
 {
 	long contrail_index;
 	/* The native builds update contrails every frame, several frames per
-	tick (port/shared/game/render_interpolation.c), but objects and their
+	tick (port/linux/game/render_interpolation.c), but objects and their
 	markers move only on ticks: points due on a frame that ran no tick would
 	land on the last point, be skipped and be lost. Emit on the first frame
 	after each tick, for all the time since the last emission. */

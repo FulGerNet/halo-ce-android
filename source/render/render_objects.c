@@ -906,7 +906,7 @@ static void object_render_state_refresh(
 	long scene_age = render.scene_index - state->render_scene_index;
 	long render_age = render.frame_index - state->render_frame_index;
 	/* The native builds draw several frames per tick
-	(port/shared/game/render_interpolation.c), and a refresh moves the lighting
+	(port/linux/game/render_interpolation.c), and a refresh moves the lighting
 	a fixed step toward its target: refresh at the intervals in ticks the
 	Xbox refreshed at in frames, so lighting changes as fast as it did. */
 	long refresh_age = game_time_get() - state->refresh_frame_index;

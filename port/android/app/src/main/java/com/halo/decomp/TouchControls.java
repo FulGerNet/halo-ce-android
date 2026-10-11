@@ -594,10 +594,15 @@ public final class TouchControls extends View implements SensorEventListener {
         try {
             android.content.pm.PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
             long code = Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
-            return "v"+info.versionName+" ("+code+")";
+            return versionLabel(info.versionName, code);
         } catch (android.content.pm.PackageManager.NameNotFoundException | RuntimeException e) {
-            return "v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.HALO_BUILD_NUMBER+")";
+            return versionLabel(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE);
         }
+    }
+
+    /** a release's name already has its number ("build 186"); another build shows both */
+    private static String versionLabel(String name, long code) {
+        return name != null && name.startsWith("build") ? name : "v"+name+" ("+code+")";
     }
 
     private void openCreator() {

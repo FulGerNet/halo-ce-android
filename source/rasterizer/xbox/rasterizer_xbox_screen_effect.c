@@ -432,7 +432,7 @@ static void rasterizer_screen_effect_set_texture_transforms(
 				main_get_window_count()<=1);
 
 			/* The native builds draw several frames per tick
-			(port/shared/game/render_interpolation.c): move the noise 30 times
+			(port/linux/game/render_interpolation.c): move the noise 30 times
 			a second, as the Xbox did once a frame, not every frame. */
 			{
 				unsigned long noise_seed =

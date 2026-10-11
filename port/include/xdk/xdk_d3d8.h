@@ -11,7 +11,7 @@ PDB: the D3D library's code and tables, and the game functions that use
 each name, whose source byte-matches), from the NV2A's documented register
 layouts (xboxdevwiki.net, nxdk) and from the public DirectX 8
 documentation; each group names its source. The platform layer
-(port/shared/src) implements the library functions the wrappers call.
+(port/linux/src) implements the library functions the wrappers call.
 */
 
 #ifndef HALO_XDK_D3D8_H
@@ -296,7 +296,7 @@ by default, they must be declared extern to be shared) */
 #endif
 
 /* state the inline functions below read and write, which the platform
-layer defines (port/shared/src/d3d8_gl.c); the library's own copies are
+layer defines (port/linux/src/d3d8_gl.c); the library's own copies are
 public symbols of the January build (D3D__RenderState, D3D__TextureState,
 D3D__IndexData) */
 extern DWORD D3D__RenderState[D3DRS_MAX];

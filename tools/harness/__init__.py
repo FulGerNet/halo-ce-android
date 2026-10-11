@@ -63,7 +63,7 @@ def constant(source, name):
     value = match.group(1)
     if re.fullmatch(r"0x[0-9A-Fa-f]+|\d+", value):
         return int(value, 0)
-    return constant(source + read("port/shared/include/halo_port_capacity.h"), value)
+    return constant(source + read("port/linux/include/halo_port_capacity.h"), value)
 
 
 def mutated(text, before, after):

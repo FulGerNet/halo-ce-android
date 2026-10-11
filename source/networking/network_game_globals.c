@@ -260,7 +260,7 @@ struct player_action_collection_definition player_action_collection_definition =
 
 /* ---------- public code */
 
-/* the distributed netcode's per-tick state (port/shared/game/network_distributed.c),
+/* the distributed netcode's per-tick state (port/linux/game/network_distributed.c),
 unreliably to the host, as the game update is */
 boolean network_distributed_client_send(
 	void *message,

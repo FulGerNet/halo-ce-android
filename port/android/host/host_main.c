@@ -14,7 +14,7 @@ Storage (see port/android/README.md): the game data (the directory holding
 maps/) is the app's external files directory,
 /sdcard/Android/data/<package>/files, where the launcher activity copies it
 on first run; saves go to its save/ subdirectory. The settings,
-config.toml, live there too (port/shared/src/port_config.c, which the game
+config.toml, live there too (port/linux/src/port_config.c, which the game
 reads); this file reads only debug.sample_seconds from it, for the sampler
 that runs here.
 */
@@ -110,7 +110,7 @@ static int directory_has_maps(const char *root)
 /* Directories the app creates in its external storage are private to it
 (mode 0770 under the app's own group), so the shell user (adb) cannot list
 them. Open the save tree for reading, with set-group-ID directories as
-posix_make_directory creates them (port/shared/src/posix_files.c). */
+posix_make_directory creates them (port/linux/src/posix_files.c). */
 static int share_entry(const char *path, const struct stat *information, int type, struct FTW *walk)
 {
 	(void)information;

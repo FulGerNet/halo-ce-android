@@ -282,7 +282,7 @@ symbols in this file:
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
-/* port/shared/game/network_distributed.c's */
+/* port/linux/game/network_distributed.c's */
 void network_distributed_player_picked_up(long player_index, short kind, long definition_index, short count);
 /* port/linux/game/network_objects.c's */
 void network_objects_client_picked_up_weapon(short local_player_index, long unit_index, long definition_index);
@@ -309,14 +309,14 @@ static void network_player_log_idle_action(long player_index, unsigned long cont
 
 /* whether this machine decides pickups: not a client of the distributed
 netcode, whose players' weapons, grenades and power-ups are the host's
-(port/shared/game/network_distributed.c) */
+(port/linux/game/network_distributed.c) */
 #define players_decide_pickups() (!network_game_distributed_client())
 
 /* ---------- constants */
 
 enum
 {
-	/* the native builds' session limits (port/shared/include/halo_port_limits.h) */
+	/* the native builds' session limits (port/linux/include/halo_port_limits.h) */
 	NETWORK_GAME_MAXIMUM_PLAYER_COUNT = HALO_PORT_MAXIMUM_NETWORK_PLAYERS,
 	MAXIMUM_NETWORK_MACHINE_COUNT = HALO_PORT_MAXIMUM_NETWORK_MACHINES,
 	MULTIPLAYER_GAME_TEXT_YOU_WERE_TELEFRAGGED = 183,
@@ -1528,7 +1528,7 @@ static void player_spawn(
 	return;
 }
 
-/* the distributed netcode (port/shared/game/network_distributed.c): a
+/* the distributed netcode (port/linux/game/network_distributed.c): a
 client's player takes the unit the host spawned it with (the host's object,
 at the host's index, with the host's weapons), as player_spawn gives a
 player the unit it makes */
@@ -4895,7 +4895,7 @@ void players_update_before_game(
 
 /* the telefrag message to a local player (port: its own function, which a
 client of the distributed netcode calls with the host's telefrag kill,
-port/shared/game/network_damage.c) */
+port/linux/game/network_damage.c) */
 void players_show_telefragged(
 	long player_index)
 {

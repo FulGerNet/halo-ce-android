@@ -341,7 +341,7 @@ void scenario_frame_update(
 	real delta_time)
 {
 	/* A frame was a tick on the Xbox; the native builds draw several frames
-	per tick (port/shared/game/render_interpolation.c), and the wind steps
+	per tick (port/linux/game/render_interpolation.c), and the wind steps
 	its random walk once an update: step it once per 30 Hz tick of game
 	time. */
 	static real leftover_ticks = 0.f;

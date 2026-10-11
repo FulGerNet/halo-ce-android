@@ -1,7 +1,7 @@
 /*
 MAP_VALIDATE.C
 
-The tag validator (port/shared/game/tag_validate.c) run alone on map files,
+The tag validator (port/linux/game/tag_validate.c) run alone on map files,
 as the game runs it when a map loads: each map's tag data is read (and
 inflated) to where the game reads it, its tags checked, then each of its
 structure bsps where it loads. Prints every correction and refusal, then a
@@ -23,7 +23,7 @@ With --log, each run that was corrected is written to a file as the map's
 name, the seed and the changed words (offset:value in the inflated file).
 
 A Halo Custom Edition map is checked as the game checks one
-(port/shared/game/custom_edition_cache.c): its loader reads it, with the
+(port/linux/game/custom_edition_cache.c): its loader reads it, with the
 resource maps beside it (or in --maps), into its own tag cache, its bytes
 are converted for this build, then the validator checks its tags and each
 of its structure bsps. Fuzzing changes words of its file, so that the
@@ -44,7 +44,7 @@ usage: map_validate [--strict] [--quiet] [--maps folder] [--fuzz iterations [--s
 #include <unistd.h>
 
 #include "zlib_prefixed.h"
-#include "../port/shared/game/cache_file_formats.h"
+#include "../port/linux/game/cache_file_formats.h"
 
 /* ---------- constants */
 
@@ -124,7 +124,7 @@ typedef char verify_cache_file_header_size[sizeof(struct cache_file_header) == C
 typedef char verify_scenario_structure_bsp_reference_size[
 	sizeof(struct scenario_structure_bsp_reference) == 0x20 ? 1 : -1];
 
-/* ---------- the validator's (port/shared/game/tag_validate.c) */
+/* ---------- the validator's (port/linux/game/tag_validate.c) */
 
 unsigned char tag_validate_tags(void *tag_header, long tag_data_size, long file_length, char const *map_name);
 unsigned char tag_validate_structure_bsp(long tag_index, void *base, long size);
@@ -152,7 +152,7 @@ void tag_validate_report(char const *message)
 }
 
 /* (the game's printf family, which the validator calls by these names:
-port/shared/include/stdio.h) */
+port/linux/include/stdio.h) */
 int halo_linux_vsnprintf(char *buffer, size_t count, char const *format, va_list arguments)
 {
 	return vsnprintf(buffer, count, format, arguments);

@@ -1,7 +1,7 @@
 /*
 GUEST_MEMORY_WATCH.C
 
-Guest memory write tracking (port/shared/src/memory_watch.c's interface).
+Guest memory write tracking (port/linux/src/memory_watch.c's interface).
 Page protection faults are delivered to the host, which owns signal
 handling in the Android process, so the tracking itself lives there
 (port/android/host/host_memory.c).

@@ -12,7 +12,7 @@ import java.util.List;
 
 /**
  * Copies the maps folder out of an Xbox disc image (an "xiso", or a whole
- * disc's ".iso"), as the desktop games do (port/shared/src/xiso.c, which this
+ * disc's ".iso"), as the desktop games do (port/linux/src/xiso.c, which this
  * follows).
  *
  * The image's file system is XDVDFS, read as extract-xiso does

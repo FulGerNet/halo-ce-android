@@ -896,7 +896,7 @@ static void rasterizer_environment_fog_screen_wind_update(
 	{
 		real_vector2d *target_direction = &wind->target_direction;
 		/* This runs once a frame, several frames per tick on the native
-		builds (port/shared/game/render_interpolation.c): turn toward the
+		builds (port/linux/game/render_interpolation.c): turn toward the
 		target as far per 30 Hz tick as the Xbox turned per frame. */
 		real weight = (real)pow(
 			PIN(1.0f - screen->wind_acceleration_weight, 0.0f, 1.0f),

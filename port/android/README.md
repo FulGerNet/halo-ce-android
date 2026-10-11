@@ -10,12 +10,16 @@ The game shows its graphics with OpenGL ES 3. It plays sound through SDL3
 The app needs Android 9 (API 28) or later. It operates on 64-bit-only
 devices, for example the Pixel 9 Pro XL.
 
-The Android build uses the shared engine layer in `port/shared`.
-See [shared engine settings](../shared/README.md#settings).
+The Android build uses the platform layer of the Linux build
+(`port/linux/src`). Refer to [port/linux/README.md](../linux/README.md).
+Physical mice use the same control bindings. During play, F12 toggles mouse
+capture; captured mode hides Android's pointer and uses relative movement for
+continuous aiming, while releasing capture restores normal pointer behavior.
 
 ## Requirements
 
-You do not need the Xbox SDK. Install Python, ninja and these items:
+You do not need the Xbox SDK. You need the tools of the Linux build (Python,
+ninja) and these items:
 
 - A clang with the `arm64_32` target, for example the clang of the system.
   The option `--android-guest-cc` of `configure.py` selects a different
@@ -28,10 +32,39 @@ You do not need the Xbox SDK. Install Python, ninja and these items:
   1.2.5 and SDL 3.4.16 to `build/android/third_party`. Gradle downloads the
   Android Gradle Plugin.
 
-On Windows, install Git for Windows as well. Its Bash runs the native
-build commands; the Windows NDK's clang builds both the guest and host.
-Set `ANDROID_HOME` to the SDK folder, including NDK and Android API 35.
-The local Gradle cache and Android user files are kept under `build/`.
+On Windows, build in WSL2 (Ubuntu 24.04), or on Windows itself with Git for
+Windows: its Bash runs the build's commands and the Windows NDK's clang
+builds the guest and the host (`tools/android_build.py`,
+`WindowsAndroidWriter`). Set `ANDROID_HOME` to the SDK folder, with the NDK
+and Android API 35, then enter `python configure.py` and `ninja android_apk`
+as on Linux. For WSL, enter
+`wsl -d Ubuntu -- bash tools/wsl_setup_android.sh` one time: it installs
+the tools and the Android SDK and NDK in WSL (apt asks for your
+password). Then enter
+`wsl -d Ubuntu -- bash tools/wsl_build_android.sh` for each build. The
+script copies the repository into WSL (`~/halo-build/src`) with LF line
+endings (a Windows checkout has CRLF line endings, which the build's text
+tools do not accept), builds there, and puts the APK in
+`dist/android/app-debug.apk`. Only the changed files are copied, so the
+next build is incremental. Install the APK with the adb of Windows.
+
+A build that you make yourself has a different signature from the builds
+of GitHub Actions. Android installs it only after you remove the app, and
+removing the app deletes its data folder (`maps/`, `save/` and
+`config.toml`). Thus a change between the builds of GitHub Actions and your
+own builds loses the saved games, unless you copy them first (below).
+Your own builds all have the same signature (the debug key of WSL,
+`~/.android`), so they install over each other and keep the data
+(`adb install -r`).
+
+To keep the saved games before you remove the app, enter
+`adb pull /sdcard/Android/data/com.halo.decomp/files/save/u` (the profiles).
+After the new install, before the first start of the app, enter
+`adb push u /sdcard/Android/data/com.halo.decomp/files/save/u`. The app reads
+and overwrites what adb pushes. adb cannot add files to `save/u` or `save/z` once the app made them, or
+change files that the app wrote, so push before the first start. adb cannot read
+some files that the app writes (the `blam.lst` files of `save/z`), so `adb pull`
+of the whole `save` folder stops there.
 
 ## Build and install the app
 
@@ -82,7 +115,8 @@ An `adb pull` of the whole `save` folder stops at the `blam.lst` files of
 `save/z`, which adb cannot read.
 
 The main menu's build label shows the installed app's version, read from the
-package at every start (for example `v4.0 (4192)`: the version name and code).
+package at every start: a release's name (`build 186`), or another build's
+version name and code (`v1.0 (1)`).
 Tap it to open https://github.com/cybersecurity/halo-ce-universal.
 
 ## Controls
@@ -125,7 +159,7 @@ selection and option lists. **Touch/Hide** remains visible in menus and gameplay
 buttons and movement stick for screens that need them. Swipe aiming, phone
 rumble and gyro aim stop while a game menu is open.
 
-### Porting options (3.1)
+### Porting options
 
 The main menu replaces **Quit** with **Porting options** in the original
 list position, using the native menu font, size and blue color. Android Back
@@ -161,7 +195,7 @@ bitmap is selected from the current map and fills the entire widescreen area.
   50% to 200%; look sensitivity ranges from 0.25x to 4x. All controls,
   including copies, can be reached by scrolling without Previous/Next pages.
 - **General** contains **Rumble**, **Gyroscope**, **Gyroscope sensitivity**,
-  **FPS counter**, **Field of view (FOV)** and **Edit in-game UI** (4.0, below). FOV uses a 55–90 degree slider
+  **FPS counter**, **Field of view (FOV)** and **Edit in-game UI** (below). FOV uses a 55–90 degree slider
   with a 70 degree default, preserves weapon zoom and is saved for both menus.
   Unsupported hardware is marked unavailable. Rumble
   defaults on, gyro and FPS default off. Gyro sensitivity has its own
@@ -215,6 +249,53 @@ with a recording renderer to check zero-alpha/faded template visibility,
 enlarged row dispatch and full-screen native bitmap selection. It requires
 the Windows Android NDK and Node; it does not validate GPU presentation.
 
+### Flying camera
+
+Flying-camera control
+uses the same touch/gyro look reader as the player camera. While free-camera
+controls are selected, the earlier player-input pass leaves the motion
+accumulator intact for the director, so every swipe reaches the camera.
+
+### Porting options: the menus' own look
+
+**PORTING OPTIONS** is written in capitals in both menus:
+
+- In the main menu the other items are pictures of text, not text. The entry
+  is now a picture made the same way (`tools/porting_assets.py`): the same
+  typeface (OpenCE), size, half-transparent blue and, when selected, the same
+  white text with a blue glow. The game's own widget draws and animates it in
+  Quit's place; the picture is twice as wide as the other items' for the longer
+  text. With `display.menus = "xbox"` there is no such picture, and the entry
+  is drawn as text as before.
+- In the pause menu the entry has the font, colour, justification and 112%
+  size of the menu's own items, and its text sits in its row where theirs does.
+
+Every title and row of the Porting options screens is in capitals. Opened from
+the main menu they are set in the main menu's typeface, one picture a
+character (`pc\porting\font`, tinted as it is drawn, made smaller when a row
+would not fit); opened from the pause menu, in the pause menu's own font. The
+layout editor's labels are capitals too.
+
+**General > Edit in-game UI** moves the game's own HUD. The editor shows three
+panels to drag: **RADAR** (the motion sensor), **WEAPONS** (the panel at the
+top left) and **HEALTH** (the panel at the top right). **SAVE** keeps them and
+returns to General, **RESET** puts them back, and Android Back saves too. The
+game moves everything it anchors at that corner of the screen by the same
+distance, so a panel moves whole; the HUD's messages stay. A panel cannot
+leave the screen. The places are fractions of the screen, kept in the app's
+preferences (`hud-layout`) and applied again at every start. They are not part
+of a `.halolayout` file: **Export** and **Import** leave them alone. A split
+screen keeps the game's own layout.
+
+Validation: `python tools/test_touch_layout.py` also checks the panels' rest
+places, dragging, screen limits, saving and that an export holds no HUD.
+`python tools/test_hud_layout_engine.py` runs the game's actual HUD placement
+with moved panels, `python tools/test_porting_ui.py` the main menu's picture
+swap, the pause menu's style and the typeface's layout. The engine tests need
+the Windows Android NDK and Node, or Edge or Chrome when Node is not installed
+(`tools/wasm_test.py`). How the menus and the moved HUD look must still be
+checked on a device.
+
 ## Settings
 
 The settings are in `config.toml` in the data folder of the app. To change
@@ -227,21 +308,19 @@ them:
 At the first start, the game writes the file with the default values. To
 get the default values again, delete the file.
 
-The shared engine settings apply to Android, except desktop window,
-mouse and path settings. Refer to [port/shared/README.md](../shared/README.md#settings).
+The settings are the settings of Linux, without the window, the mouse and
+the paths. Refer to [port/linux/README.md](../linux/README.md#settings).
 These settings are only for Android:
 
 | Setting | Function |
 | --- | --- |
-| `input.touch_aim_assist` | `true` (the default): the touch controls' swipe aiming gets the aim assist of a controller (the aim slows over a target and follows a moving one). `false`: none, as with a mouse; the bullets' own autoaim stays. |
-| `input.touch_controls` | The touch controls in a game. `"auto"` (the default): shown on a touchscreen while no controller is connected. `"on"`: also shown with a controller. `"off"`: never shown. A device without a touchscreen never shows them. The menus take taps in any case. |
 | `display.screen_width` | The number of columns of the 480-line picture. `0` (the default): the shape of the display (1068 on a 20:9 phone). `640`: the 4:3 shape of the Xbox. |
 | `debug.sample_seconds` | Refer to "Find problems". |
 | `debug.memory_watch` | `true` (the default): the app notices the game's writes to textures and vertices by page protection. `false`: it compares page contents once a frame instead, which is slower. Refer to "Limits". |
 
 ## Internet play
 
-Internet play uses system link networking and invite links. When the game
+Internet play operates as on Linux, but without Discord. When the game
 hosts a system link game, it puts the invite link on the clipboard and
 shows a notice.
 
@@ -265,12 +344,9 @@ drop it, and when it hosts, its players leave.
 
 ## Updates
 
-The app from GitHub Actions checks releases of
-[theLlamaNet/halo-ce-android](https://github.com/theLlamaNet/halo-ce-android).
-Upstream commits are synchronized automatically after tests and builds;
-GitHub tags and releases are created manually. See the root README's
-[synchronization and manual release instructions](../../README.md#automatic-upstream-synchronization).
-When a newer build is found and you select "Yes":
+The app from GitHub Actions can update itself, as on Linux (refer to
+"Updates" in [port/linux/README.md](../linux/README.md#updates)). When you
+select "Yes":
 
 1. The app downloads the new version.
 2. The package installer of Android opens. At the first update, Android asks
@@ -350,13 +426,13 @@ and supplies the thread pointer and TLS.
   (`host/host_sdl.c`).
 - Does the calls of the guest: system calls (`host/host_syscall.c`), SDL
   (`host/host_sdl.c`), OpenGL ES (`host/host_gl.c`), and the file, socket,
-  UPnP and DTLS functions of `port/shared/src/posix_*.c` (DTLS with Mbed TLS,
+  UPnP and DTLS functions of `port/linux/src/posix_*.c` (DTLS with Mbed TLS,
   for internet play with browsers: `posix_dtls.c`).
 
 The guest calls the host through stubs (`tools/android_imports.py`). The
 two ABIs use the same registers for 32-bit integers, floats and pointers.
 `tools/android_gl_stubs.py` makes the OpenGL ES stubs from
-`port/shared/src/gl.h`. `tools/android_posix_stubs.py` makes the stubs of the
+`port/linux/src/gl.h`. `tools/android_posix_stubs.py` makes the stubs of the
 `posix_*` functions, which copy the `errno` of the host.
 
 ### The fixed addresses
@@ -404,7 +480,7 @@ the fixed addresses:
 
 ### OpenGL ES
 
-The renderer (`port/shared/src/d3d8_gl.c`) uses OpenGL ES 3.0, and some
+The renderer (`port/linux/src/d3d8_gl.c`) uses OpenGL ES 3.0, and some
 functions of OpenGL ES 3.2 if they are available:
 
 - The vertex shaders flip y and change the depth range from 0..1. The front
@@ -455,7 +531,7 @@ Android build defines all of (`tools/android_build.py`):
 - `HALO_ANDROID`: the app (its display, input, files and lifecycle).
 
 The x86 inline assembly is replaced by C (refer to
-[port/shared/README.md](../shared/README.md#game-source-changes)).
+[port/linux/README.md](../linux/README.md#game-source-changes)).
 These changes are in `#ifdef HALO_ARM64_GUEST`:
 
 - Seven `#pragma bss_seg(".bss")` lines are removed. The Darwin target does
@@ -501,61 +577,3 @@ assembly of the port is necessary:
   log). This is slower, and a write shows one frame later, so moving
   geometry can glitch briefly. `debug.memory_watch = false` does the same
   on a device.
-
-Builds without a valid `HALO_BUILD_NUMBER` use `git rev-list --count HEAD`,
-including direct Gradle builds. Both versionCode and the Java updater receive
-the resolved number. Installing an update over an existing APK also requires
-the same signing key.
-
-### Version 3.5
-
-The main-menu Porting options label is 40% larger. Flying-camera control
-uses the same touch/gyro look reader as the player camera. While free-camera
-controls are selected, the earlier player-input pass leaves the motion
-accumulator intact for the director, so every swipe reaches the camera.
-
-### Version 4.0
-
-Synchronized with upstream `6399ed9d` (voice chat, WebRTC internet play with
-browsers, profiling builds, upstream's own touch menus and controls). The
-fork keeps its overlay, Porting options, relay fallback and cheats: upstream's
-touch controls drive only its web build here, and the app now links Opus and
-Mbed TLS as upstream's Android build does.
-
-**PORTING OPTIONS** is written in capitals in both menus:
-
-- In the main menu the other items are pictures of text, not text. The entry
-  is now a picture made the same way (`tools/porting_assets.py`): the same
-  typeface (OpenCE), size, half-transparent blue and, when selected, the same
-  white text with a blue glow. The game's own widget draws and animates it in
-  Quit's place; the picture is twice as wide as the other items' for the longer
-  text. With `display.menus = "xbox"` there is no such picture, and the entry
-  is drawn as text as before.
-- In the pause menu the entry has the font, colour, justification and 112%
-  size of the menu's own items, and its text sits in its row where theirs does.
-
-Every title and row of the Porting options screens is in capitals. Opened from
-the main menu they are set in the main menu's typeface, one picture a
-character (`pc\porting\font`, tinted as it is drawn, made smaller when a row
-would not fit); opened from the pause menu, in the pause menu's own font. The
-layout editor's labels are capitals too.
-
-**General > Edit in-game UI** moves the game's own HUD. The editor shows three
-panels to drag: **RADAR** (the motion sensor), **WEAPONS** (the panel at the
-top left) and **HEALTH** (the panel at the top right). **SAVE** keeps them and
-returns to General, **RESET** puts them back, and Android Back saves too. The
-game moves everything it anchors at that corner of the screen by the same
-distance, so a panel moves whole; the HUD's messages stay. A panel cannot
-leave the screen. The places are fractions of the screen, kept in the app's
-preferences (`hud-layout`) and applied again at every start. They are not part
-of a `.halolayout` file: **Export** and **Import** leave them alone. A split
-screen keeps the game's own layout.
-
-Validation: `python tools/test_touch_layout.py` also checks the panels' rest
-places, dragging, screen limits, saving and that an export holds no HUD.
-`python tools/test_hud_layout_engine.py` runs the game's actual HUD placement
-with moved panels, `python tools/test_porting_ui.py` the main menu's picture
-swap, the pause menu's style and the typeface's layout. The engine tests need
-the Windows Android NDK and Node, or Edge or Chrome when Node is not installed
-(`tools/wasm_test.py`). How the menus and the moved HUD look must still be
-checked on a device.

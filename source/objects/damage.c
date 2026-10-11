@@ -141,7 +141,7 @@ symbols in this file:
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
-/* port/shared/game/network_damage.c's */
+/* port/linux/game/network_damage.c's */
 boolean network_damage_deals(struct damage_data const *damage, long object_index, short node_index,
 	short region_index, short material_index, real_vector3d const *object_normal, boolean authorized);
 boolean network_damage_replaying_kill(void);
@@ -1441,9 +1441,9 @@ void object_cause_damage(
 	/* port: the gametype's friendly fire (game_engine_friendly_damage) */
 	short friendly_damage;
 
-	/* the distributed netcode (port/shared/NETCODE.md): the host deals
+	/* the distributed netcode (port/linux/NETCODE.md): the host deals
 	damage; a client reports its own players' hits instead, and the host
-	deals those (port/shared/game/network_damage.c) */
+	deals those (port/linux/game/network_damage.c) */
 	if (!network_damage_deals(damage, object_index, node_index, region_index, material_index, object_normal,
 		distributed_damage_authorized))
 	{
@@ -2673,7 +2673,7 @@ static void object_permutation_shield_regions(
 	return;
 }
 
-/* the distributed netcode (port/shared/game/network_distributed.c): a
+/* the distributed netcode (port/linux/game/network_distributed.c): a
 client's copy of an object takes the host's vitality and recent damage
 (what the shields' and the HUD's effects show), with the effects of its
 shields going down and coming back up as the host's do */
@@ -2713,7 +2713,7 @@ void damage_set_network_state(
 }
 
 /* the distributed netcode's client, replaying the damage its host dealt
-(port/shared/game/network_damage.c): a player's screen shaken and flashed */
+(port/linux/game/network_damage.c): a player's screen shaken and flashed */
 void damage_replay_player_effect(
 	long player_index,
 	struct damage_data *damage,
@@ -2788,7 +2788,7 @@ void damage_get_network_state(
 	state->recent_shield_damage = object->object.recent_shield_damage;
 }
 
-/* the automated network tests (port/shared/game/network_test.c): kills the
+/* the automated network tests (port/linux/game/network_test.c): kills the
 object as falling damage does (an act of god), but credited to a player, so
 that the kill counts in the game's scores */
 void damage_kill_object_for_player(

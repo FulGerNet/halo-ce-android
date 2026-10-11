@@ -201,7 +201,7 @@ symbols in this file:
 #include "networking/network_game_manager.h"
 #include "networking/network_messages.h"
 
-/* port/shared/game/network_distributed.c's */
+/* port/linux/game/network_distributed.c's */
 void network_distributed_handle_message(long machine_index, word const *message, word size);
 
 /* ---------- constants */
@@ -211,7 +211,7 @@ void network_distributed_handle_message(long machine_index, word const *message,
 enum
 {
 	/* the native builds' protocol and session limits
-	(port/shared/include/halo_port_limits.h) */
+	(port/linux/include/halo_port_limits.h) */
 	NETWORK_GAME_MESSAGE_VERSION = HALO_PORT_NETWORK_GAME_MESSAGE_VERSION,
 	TRANSPORT_NONCE_LENGTH = 8,
 	TRANSPORT_ERROR_MESSAGE_TEXT_LENGTH = 0x80,
@@ -710,7 +710,7 @@ boolean network_game_client_handle_message(
 				break;
 
 			case _message_type_data:
-				/* the distributed netcode's messages (port/shared/NETCODE.md),
+				/* the distributed netcode's messages (port/linux/NETCODE.md),
 				the host's alone: over its connection, or datagrams from its
 				address */
 				if (network_game_client_address_matches_server(client, source_address))

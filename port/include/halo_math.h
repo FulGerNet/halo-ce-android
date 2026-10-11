@@ -2,11 +2,11 @@
 HALO_MATH.H
 
 The same maths functions on every native port (included by the game's
-<math.h>: port/shared/include/math.h, port/windows/include/crt/math.h).
+<math.h>: port/linux/include/math.h, port/windows/include/crt/math.h).
 
 In a system link game every machine simulates the players from the same
 inputs, and what the host does not correct (projectiles, devices, the
-objects it does not send, port/shared/NETCODE.md) only stays the same on
+objects it does not send, port/linux/NETCODE.md) only stays the same on
 every machine if their floating point results agree to the last bit. The
 C libraries' sin, pow and the rest are
 not the same bit for bit (glibc on Linux, the UCRT on Windows, musl on

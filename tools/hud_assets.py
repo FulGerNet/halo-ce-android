@@ -11,7 +11,7 @@ ladder, which its weapon's folder holds), laid out as the Xbox maps' sheets:
 
 The game draws a HUD bitmap at its tag's size and samples it with normalised
 coordinates, so a texture of 8x its size in the same layout draws in its
-place unchanged (port/shared/src/hud_hires.c swaps it in as the bitmap is
+place unchanged (port/linux/src/hud_hires.c swaps it in as the bitmap is
 uploaded). The redraws are drawn on the PC sheets, mostly 4x the Xbox
 bitmaps (a few at their size), and the PC tags have more sprites than the
 Xbox ones and place some elsewhere, so each Xbox sprite (or bitmap) is
@@ -733,7 +733,7 @@ def coverage(alpha: np.ndarray) -> np.ndarray:
     outline (covered texels next to uncovered ones) the share their alpha has
     of their brightest neighbour's. The meter shader reads only blue and
     alpha; the game eases the meter's darkening of what is behind it by this
-    (port/shared/src/nv2a_psh.c, coverage_alpha), which on the Xbox stopped at
+    (port/linux/src/nv2a_psh.c, coverage_alpha), which on the Xbox stopped at
     its point-sampled texels' edges, and filtered would leave a dark fringe."""
     from scipy import ndimage
 

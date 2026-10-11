@@ -75,9 +75,9 @@ struct widget_instance {
  struct {struct {wchar_t *text;short string_list_index;} text_box;} parameters;
 };
 static struct ui_widget_definition template;
-'''+(root/'port/shared/include/halo_porting_ui.h').read_text()+r'''
-'''+(root/'port/shared/include/halo_porting_font.h').read_text()+r'''
-'''+(root/'port/shared/include/halo_ui_pointer.h').read_text()+r'''
+'''+(root/'port/linux/include/halo_porting_ui.h').read_text()+r'''
+'''+(root/'port/linux/include/halo_porting_font.h').read_text()+r'''
+'''+(root/'port/linux/include/halo_ui_pointer.h').read_text()+r'''
 static struct halo_porting_menu ui_porting_menu;
 static int ui_porting_context,ui_porting_count,ui_porting_revision;
 static int ui_porting_scroll,ui_porting_scroll_max;
@@ -350,6 +350,6 @@ int run_tests(void){
 }
 '''
 (out/'test.c').write_text(code)
-subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-fshort-wchar','-ffreestanding','-fno-builtin','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
+subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-DHALO_ANDROID=1','-std=c99','-fshort-wchar','-ffreestanding','-fno-builtin','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
 subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/'test.o'),'-o',str(out/'test.wasm')],check=True)
 wasm_test.check(out/'test.wasm', 'UI', 'Main menu picture, pause menu style, title typeface glyphs, bitmap bounds, 64-control scrolling and fixed Back passed')

@@ -396,7 +396,7 @@ symbols in this file:
 
 enum
 {
-	/* the native builds' session limits (port/shared/include/halo_port_limits.h) */
+	/* the native builds' session limits (port/linux/include/halo_port_limits.h) */
 	MAXIMUM_NETWORK_MACHINE_COUNT = HALO_PORT_MAXIMUM_NETWORK_MACHINES,
 	MAXIMUM_NETWORK_ADVERTISED_GAMES = 9,
 	MAXIMUM_NUMBER_OF_PLAYERS = HALO_PORT_MAXIMUM_NETWORK_PLAYERS,
@@ -595,7 +595,7 @@ struct message_client_ping
 	byte __padding6[2];
 };
 
-/* port/shared/src/p2p.c's */
+/* port/linux/src/p2p.c's */
 void p2p_hardware_id(char *hex, int size);
 
 struct message_client_join_game_request
@@ -659,7 +659,7 @@ typedef char network_machine_size_assert[
 typedef char player_profile_size_assert[
 	sizeof(struct player_profile) == 0x30 ? 1 : -1];
 /* the update and settings layouts follow the session limits
-(port/shared/include/halo_port_limits.h) */
+(port/linux/include/halo_port_limits.h) */
 typedef char message_server_game_update_size_assert[
 	sizeof(struct message_server_game_update) == 0x10 + MAXIMUM_NUMBER_OF_PLAYERS * 0x20 ? 1 : -1];
 typedef char message_server_machine_accepted_size_assert[
@@ -3070,7 +3070,7 @@ static void network_game_client_set_error(
 	return;
 }
 
-/* the native ports' automated network tests (port/shared/game/network_test.c):
+/* the native ports' automated network tests (port/linux/game/network_test.c):
 joins the first open game the client's search has found, as picking it in
 the system link list does (network_game_join_game_from_server_list) */
 /* the platform layer's (sdl_platform.c) */

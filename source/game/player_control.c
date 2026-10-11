@@ -392,7 +392,7 @@ boolean controls_enable_crouch = FALSE;
 boolean controls_enable_doubled_spin = FALSE;
 boolean controls_swap_doubled_spin_state = FALSE;
 /* The native builds read input once a frame and draw several frames per
-30 Hz tick (port/shared/game/render_interpolation.c). The pitch autolevel and
+30 Hz tick (port/linux/game/render_interpolation.c). The pitch autolevel and
 limits were stepped once per input update, a tick on the Xbox, so they step
 by the ticks the frame lasted; an impulse applied from a tick steps by one. */
 static real player_control_angle_step_ticks = 1.f;
@@ -502,25 +502,33 @@ real player_control_get_field_of_view(
 			control->unit_index,
 			unit->unit.current_weapon_index);
 
-		real base_field_of_view = definition->unit.camera_field_of_view;
 #ifdef HALO_ANDROID
+		real base_field_of_view = definition->unit.camera_field_of_view;
 		{
 			extern float host_touch_field_of_view(void);
 			base_field_of_view = PIN(base_field_of_view * host_touch_field_of_view()/70.0f,
 				DEGREES_TO_RADIANS(1.f), DEGREES_TO_RADIANS(90.f));
 		}
-#endif
 
+#endif
 		if (weapon_index != NONE)
 		{
 			field_of_view = weapon_get_field_of_view(
 				weapon_index,
+#ifdef HALO_ANDROID
 				base_field_of_view,
+#else
+				definition->unit.camera_field_of_view,
+#endif
 				control->zoom_level);
 		}
 		else
 		{
+#ifdef HALO_ANDROID
 			field_of_view = base_field_of_view;
+#else
+			field_of_view = definition->unit.camera_field_of_view;
+#endif
 		}
 	}
 	return field_of_view;
@@ -1207,7 +1215,7 @@ static void get_local_player_input_blob(
 						constants->look_function.address,
 						clamped_pitch) * pitch_spin_scale * look_pitch_rate;
 					{
-						/* port: the touch controls' swipe (port/shared/src/xinput_sdl.c),
+						/* port: the touch controls' swipe (port/linux/src/xinput_sdl.c),
 						a turn this frame, made a rate as the stick's look is: the
 						zoom, the stun and the magnetism below act on it as on the
 						stick's, so that it slows over a target and follows a moving
@@ -1290,7 +1298,7 @@ static void get_local_player_input_blob(
 							&target_angular_position,
 							&target_angular_velocity);
 						{
-							/* no magnetism for the mouse (port/shared/src/xinput_sdl.c),
+							/* no magnetism for the mouse (port/linux/src/xinput_sdl.c),
 							nor for the touch controls without their aim assist */
 							extern int halo_linux_mouse_aiming(short gamepad_index);
 							extern int halo_linux_touch_aiming(short gamepad_index);
@@ -1341,18 +1349,20 @@ static void get_local_player_input_blob(
 						input->facing_delta.pitch = facing_scale * look_delta.pitch;
 					}
 					{
-						/* direct mouse aim (port/shared/src/xinput_sdl.c) */
+						/* direct mouse aim (port/linux/src/xinput_sdl.c) */
 						extern int halo_linux_mouse_look(short gamepad_index, real *yaw, real *pitch);
 						real mouse_yaw;
 						real mouse_pitch;
 
+#ifdef HALO_ANDROID
 						/* Leave the shared, sensitivity-scaled delta for the free camera:
                            player input runs first and must not drain its swipe/gyro. */
                         if (
-#ifdef HALO_ANDROID
                             !director_flying_controls_active(local_player_index) &&
-#endif
                             halo_linux_mouse_look(gamepad_index, &mouse_yaw, &mouse_pitch))
+#else
+						if (halo_linux_mouse_look(gamepad_index, &mouse_yaw, &mouse_pitch))
+#endif
 						{
 							if (player->unit_index != NONE && control->zoom_level != NONE)
 							{

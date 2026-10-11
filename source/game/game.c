@@ -665,7 +665,7 @@ void game_initialize_for_new_map(
 	scenario_initialize_for_new_map();
 	objects_initialize_for_new_map();
 	/* nothing of the distributed netcode's carried into the new game
-	(port/shared/game/network_distributed.c), before anything of the map
+	(port/linux/game/network_distributed.c), before anything of the map
 	makes an object: a client makes the map's objects, and the game type's
 	(the flags of capture the flag, game_engine_initialize_for_new_map), at
 	the host's indices, not its own objects' of the last game's */
@@ -705,7 +705,7 @@ void game_initialize_for_new_map(
 	if (!game_in_editor())
 		ai_place();
 	/* (the map's objects, placed as on the host: a distributed client's own
-	from now on go elsewhere, port/shared/game/network_objects.c) */
+	from now on go elsewhere, port/linux/game/network_objects.c) */
 	network_objects_placed();
 	ui_widgets_safe_to_load(TRUE);
 

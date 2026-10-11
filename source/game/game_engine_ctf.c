@@ -278,7 +278,7 @@ extern long timeout_for_endgame_sound;
 
 /* network_game_globals.c's */
 boolean network_game_distributed_client(void);
-/* port/shared/game/network_distributed.c's */
+/* port/linux/game/network_distributed.c's */
 byte distributed_player_to_byte(long player_index);
 long distributed_player_from_byte(byte player_index);
 
@@ -1546,7 +1546,7 @@ struct ctf_network_state
 typedef char verify_ctf_network_state_size[
 	sizeof(struct ctf_network_state) == 0x38 ? 1 : -1];
 
-/* the distributed netcode (port/shared/game/network_distributed.c): the game
+/* the distributed netcode (port/linux/game/network_distributed.c): the game
 type's state the host sends its clients, which take it as it is */
 long game_engine_ctf_write_network_state(
 	byte *buffer,

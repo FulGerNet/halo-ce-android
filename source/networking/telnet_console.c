@@ -81,7 +81,7 @@ struct telnet_console_globals
 
 /* ---------- prototypes */
 
-/* the platform layer's (port/shared/src/port_config.c) */
+/* the platform layer's (port/linux/src/port_config.c) */
 int config_boolean(const char *name);
 long config_integer(const char *name);
 

@@ -35,7 +35,7 @@ key downs and repeats, so repeats are 0x2. The game's own request
 Source: cachebeta.exe: the input library (0x642a79...) builds the flags
 from the USB modifier byte as ctrl 0x01, shift 0x02, alt 0x04 and marks
 key releases 0x40; input_update_keyboard_devices (static, at 0x4bf150)
-reads the same bits. port/shared/src/sdl_platform.c produces these values. */
+reads the same bits. port/linux/src/sdl_platform.c produces these values. */
 #define XINPUT_DEBUG_KEYSTROKE_FLAG_CTRL 0x01
 #define XINPUT_DEBUG_KEYSTROKE_FLAG_SHIFT 0x02
 #define XINPUT_DEBUG_KEYSTROKE_FLAG_ALT 0x04
@@ -44,7 +44,7 @@ reads the same bits. port/shared/src/sdl_platform.c produces these values. */
 /* ---------- functions */
 
 /* the debug keyboard's device type table: a data symbol of
-cachebeta.exe; port/shared/src/xinput_sdl.c defines it for the native
+cachebeta.exe; port/linux/src/xinput_sdl.c defines it for the native
 ports */
 extern XPP_DEVICE_TYPE XDEVICE_TYPE_DEBUG_KEYBOARD_TABLE;
 
