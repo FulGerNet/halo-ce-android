@@ -6,8 +6,9 @@
 
 The game shows its graphics with OpenGL ES 3. It plays sound through SDL3
 (AAudio). It accepts input from game controllers, for example a PlayStation
-5 DualSense on Bluetooth. The app needs Android 9 (API 28) or later. It
-operates on 64-bit-only devices, for example the Pixel 9 Pro XL.
+5 DualSense on Bluetooth, and from the touchscreen (refer to "Controls").
+The app needs Android 9 (API 28) or later. It operates on 64-bit-only
+devices, for example the Pixel 9 Pro XL.
 
 The Android build uses the shared engine layer in `port/shared`.
 See [shared engine settings](../shared/README.md#settings).
@@ -76,7 +77,9 @@ To install the data from a computer:
 | Settings | `config.toml` |
 
 To make a copy of the saved games, enter
-`adb pull /sdcard/Android/data/com.halo.decomp/files/save`.
+`adb pull /sdcard/Android/data/com.halo.decomp/files/save/u` (the profiles).
+An `adb pull` of the whole `save` folder stops at the `blam.lst` files of
+`save/z`, which adb cannot read.
 
 The main menu build label shows **Made by FulGer** for all imported disc versions.
 Tap it to open https://www.youtube.com/@fulger.a.
@@ -157,7 +160,7 @@ bitmap is selected from the current map and fills the entire widescreen area.
   50% to 200%; look sensitivity ranges from 0.25x to 4x. All controls,
   including copies, can be reached by scrolling without Previous/Next pages.
 - **General** contains **Rumble**, **Gyroscope**, **Gyroscope sensitivity**,
-  **FPS counter** and **Field of view (FOV)**. FOV uses a 55Ã¢â‚¬â€œ90 degree slider
+  **FPS counter** and **Field of view (FOV)**. FOV uses a 55–90 degree slider
   with a 70 degree default, preserves weapon zoom and is saved for both menus.
   Unsupported hardware is marked unavailable. Rumble
   defaults on, gyro and FPS default off. Gyro sensitivity has its own
@@ -186,10 +189,10 @@ Zoom switches once per press, including when held across several frames.
 Swipe aiming uses the same **Look sensitivity** setting as the player camera
 (default **2x** for new configurations; existing preferences are preserved).
 The sensitivity slider can be dragged beyond either edge to reach its full
-0.25xâ€“4x range. Fire/Grenade control vertical camera movement.
+0.25x–4x range. Fire/Grenade control vertical camera movement.
 
 Version 4 `.halolayout` files include the Camera mode control. Imports of
-versions 1Ã¢â‚¬â€œ3 insert it without losing existing positions or button copies.
+versions 1–3 insert it without losing existing positions or button copies.
 These files also preserve gyro sensitivity and the FPS
 preference, FOV and Disable all overlay. Missing new settings use 70 degrees
 and enabled overlays. Startup cheats are separate from layout exports. Version 1 and 2 layouts remain supported; their gyro sensitivity
@@ -229,8 +232,11 @@ These settings are only for Android:
 
 | Setting | Function |
 | --- | --- |
+| `input.touch_aim_assist` | `true` (the default): the touch controls' swipe aiming gets the aim assist of a controller (the aim slows over a target and follows a moving one). `false`: none, as with a mouse; the bullets' own autoaim stays. |
+| `input.touch_controls` | The touch controls in a game. `"auto"` (the default): shown on a touchscreen while no controller is connected. `"on"`: also shown with a controller. `"off"`: never shown. A device without a touchscreen never shows them. The menus take taps in any case. |
 | `display.screen_width` | The number of columns of the 480-line picture. `0` (the default): the shape of the display (1068 on a 20:9 phone). `640`: the 4:3 shape of the Xbox. |
 | `debug.sample_seconds` | Refer to "Find problems". |
+| `debug.memory_watch` | `true` (the default): the app notices the game's writes to textures and vertices by page protection. `false`: it compares page contents once a frame instead, which is slower. Refer to "Limits". |
 
 ## Internet play
 
@@ -276,7 +282,7 @@ signature. GitHub Actions signs each build with the key in the
 `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` secrets of the
 repository. If you installed a build that has a different signature, remove
 that build before you install a new build. Removing the app deletes its data
-folder: first make a copy of `maps/` and `save/`.
+folder: first make a copy of `maps/` and `save/u`.
 
 ## Widescreen
 
@@ -290,9 +296,7 @@ the Xbox:
 - Black bars and fades cover all of the screen, and so do the menus' dims
   and backgrounds (the pause menu's dim, dialogs, the menus' gradient).
 
-The changes are in `#ifdef HALO_ANDROID` in `rasterizer_xbox.c`, `render.c`,
-`ui_widget.c`, `cinematics.c`, `main.c` and
-`rasterizer_xbox_screen_effect.c`.
+All the ports draw this way.
 
 ## How the port operates
 
@@ -336,7 +340,7 @@ and supplies the thread pointer and TLS.
 
 - Reserves the address space of the guest below 4 GB: the Xbox memory at
   `0x80000000`, the image, and pools for the memory of the guest
-  (`host/host_memory.c`).
+  (`host/host_memory.c`). Refer to "The fixed addresses".
 - Loads the image and fills its import table (`host/host_loader.c`).
 - Starts the `main` of the game and each guest thread on a stack in guest
   memory, because ILP32 code keeps stack addresses in 32-bit registers
@@ -344,14 +348,58 @@ and supplies the thread pointer and TLS.
 - Gives the audio callback of SDL to a thread with a guest stack
   (`host/host_sdl.c`).
 - Does the calls of the guest: system calls (`host/host_syscall.c`), SDL
-  (`host/host_sdl.c`), OpenGL ES (`host/host_gl.c`), and the file and socket
-  functions of `port/shared/src/posix_*.c`.
+  (`host/host_sdl.c`), OpenGL ES (`host/host_gl.c`), and the file, socket,
+  UPnP and DTLS functions of `port/shared/src/posix_*.c` (DTLS with Mbed TLS,
+  for internet play with browsers: `posix_dtls.c`).
 
 The guest calls the host through stubs (`tools/android_imports.py`). The
 two ABIs use the same registers for 32-bit integers, floats and pointers.
 `tools/android_gl_stubs.py` makes the OpenGL ES stubs from
 `port/shared/src/gl.h`. `tools/android_posix_stubs.py` makes the stubs of the
 `posix_*` functions, which copy the `errno` of the host.
+
+### The fixed addresses
+
+The guest needs the Xbox memory at `0x80000000` to `0x88000000` and the
+image above it, to `0x8c000000`. The cache files contain pointers to these
+addresses. The Java runtime of Android (ART) also reserves its spaces below
+4 GB. On some devices, for example handhelds with a large Java heap (the
+AYN Thor, the Retroid Pocket), ART's large object space covers
+`0x80000000`. ART fills that space from its bottom, so the part at
+`0x80000000` is usually empty.
+
+Thus:
+
+1. The game operates in a process of its own (`:game`), with a fresh Java
+   heap. The launcher, the import of a disc image and an earlier game do
+   not leave objects there.
+2. At the start of that process, `HaloApplication` loads `libmain.so`. Its
+   `JNI_OnLoad` reserves the fixed addresses before the Java side
+   allocates large objects.
+3. If ART's large object space is in the way, the host takes back only the
+   part that covers the fixed addresses, and only if no page of it is in
+   use (`/proc/self/pagemap`, or `mincore` and the swap of that part if
+   the device refuses `pagemap`). The host never takes the other spaces of
+   ART.
+
+If the addresses are not available, the game shows a message, and writes
+the mappings below 4 GB to `memory_map.txt` in the data folder and to the
+log.
+
+To test the reclaim on any device, set a system property before you start
+the game. The app then puts a stand-in for ART's large object space over
+the fixed addresses:
+
+- `adb shell setprop debug.halo.art_overlap idle`: the stand-in is empty
+  at `0x80000000`. The log shows `reclaimed idle ART range`, and the game
+  starts.
+- `adb shell setprop debug.halo.art_overlap busy`: a page at `0x80100000`
+  is in use. The game shows the message and writes `memory_map.txt`.
+- Add `-nopagemap` to either value (`idle-nopagemap`) to test as on a
+  device that refuses `/proc/self/pagemap`. Add `-swapped`
+  (`idle-nopagemap-swapped`) to also move the objects of the stand-in to
+  swap; with `busy`, the page in the fixed addresses too.
+- `adb shell setprop debug.halo.art_overlap ""`: normal operation.
 
 ### OpenGL ES
 
@@ -397,8 +445,17 @@ floating-point contraction, as on x86.
 
 ### Game source changes
 
-The original x86 inline assembly is replaced by portable C.
-These changes are in `#ifdef HALO_ANDROID`:
+The port's code tells three things apart, each its own macro, which the
+Android build defines all of (`tools/android_build.py`):
+
+- `HALO_ARM64_GUEST`: the guest's ABI (ILP32 AArch64 code in a 64-bit
+  process);
+- `HALO_GLES`: the OpenGL ES renderer;
+- `HALO_ANDROID`: the app (its display, input, files and lifecycle).
+
+The x86 inline assembly is replaced by C (refer to
+[port/shared/README.md](../shared/README.md#game-source-changes)).
+These changes are in `#ifdef HALO_ARM64_GUEST`:
 
 - Seven `#pragma bss_seg(".bss")` lines are removed. The Darwin target does
   not accept them.
@@ -425,15 +482,24 @@ assembly of the port is necessary:
   at this interval. This finds hangs on devices without root access.
 - Set `gl_debug = true` in `[debug]` of `config.toml`. The log then shows
   the OpenGL ES errors.
+- The log says which write tracking the app uses: "page protection"
+  (devices) or "page hashes" (the emulator, or `debug.memory_watch = false`).
 
 ## Limits
 
 - Bink video is not available. The game skips the movies.
 - The device must let the app reserve the fixed guest addresses, from
-  `0x80000000` to approximately `0x89000000`. If the addresses are not
-  available, the app shows a message.
+  `0x80000000` to `0x8c000000`. If ART uses them, the app shows a message
+  (refer to "The fixed addresses").
 - Kernels with 16 KB pages (a developer option of Android 15) do not
   operate. The Xbox memory uses 4 KB pages.
+- The x86 Android emulator runs the app through its ARM translation. The
+  translation cannot deliver the page faults that the renderer uses to
+  notice changed textures and vertices. On the emulator the app compares
+  page contents once a frame instead ("write tracking: page hashes" in the
+  log). This is slower, and a write shows one frame later, so moving
+  geometry can glitch briefly. `debug.memory_watch = false` does the same
+  on a device.
 
 Builds without a valid `HALO_BUILD_NUMBER` use `git rev-list --count HEAD`,
 including direct Gradle builds. Both versionCode and the Java updater receive

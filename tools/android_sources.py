@@ -24,12 +24,13 @@ def xdk_headers() -> List[Path]:
 
 def game_sources(config: Dict[str, Any]) -> List[Path]:
     """the game's C sources (port.json "game"): every one under its root but
-    those excluded"""
+    those excluded (a file, or a folder: a name ending in "/")"""
     game = config["game"]
-    excluded = set(game.get("exclude", []))
+    excluded = game.get("exclude", [])
     return sorted(
         source for source in Path(game["root"]).rglob("*.c")
-        if source.as_posix() not in excluded
+        if not any(source.as_posix() == name or (name.endswith("/") and source.as_posix().startswith(name))
+                   for name in excluded)
     )
 
 def game_defines_and_includes(config: Dict[str, Any]) -> str:
@@ -49,6 +50,42 @@ def compile_launcher(sln: Any) -> str:
 def miniupnpc_sources() -> List[Path]:
     """miniupnpc's library sources (port/third_party/miniupnpc/src)"""
     return sorted((MINIUPNPC_DIR / "src").glob("*.c"))
+
+# voice chat's codec (port/third_party/opus; network_voice.c): the
+# floating-point library in plain C, its files as sources.txt lists them
+OPUS_DIR = Path("port/third_party/opus")
+OPUS_DEFINES = ("-DOPUS_BUILD", "-DVAR_ARRAYS", "-DHAVE_LRINTF", "-DHAVE_LRINT")
+
+
+def opus_sources() -> List[Path]:
+    """Opus's library sources (port/third_party/opus/sources.txt)"""
+    return [OPUS_DIR / line.strip() for line in (OPUS_DIR / "sources.txt").read_text().splitlines() if line.strip()]
+
+
+def opus_cflags(abi: str) -> str:
+    """the flags Opus's sources build with, on the platform layer's ABI"""
+    return " ".join([abi, "-std=gnu11", "-O2", *OPUS_DEFINES,
+                     *(f"-I{(OPUS_DIR / name).as_posix()}" for name in ("include", "celt", "silk", "silk/float")), "-w"])
+
+
+def configuration_defines(sln: Any) -> List[str]:
+    """what configure.py's options define for every unit of the build:
+    --release (no assertions), --profile (the profiling build's recording,
+    port/shared/src/profile_trace.c)"""
+    defines = []
+    if getattr(sln, "port_release", False):
+        defines.append("-DHALO_RELEASE")
+    if getattr(sln, "port_profile", False):
+        defines.append("-DHALO_PROFILE")
+    return defines
+
+
+def check_profile_options(profile: bool, pgo: str) -> None:
+    """A profiling build is optimised with the committed profiles or none:
+    trained, a profile would record the profiling code's own paths."""
+    if profile and pgo == "train":
+        raise ValueError("--profile cannot be used with --pgo=train: train profiles with a normal build")
+
 
 def musl_math_sources() -> List[Path]:
     """musl's maths functions the game uses (port/third_party/musl-math)"""

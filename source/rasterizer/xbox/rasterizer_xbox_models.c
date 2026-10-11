@@ -123,6 +123,7 @@ symbols in this file:
 #include "rasterizer/xbox/rasterizer_xbox_draw_primitives.h"
 #include "rasterizer/xbox/rasterizer_xbox_internal.h"
 #include "rasterizer/xbox/rasterizer_xbox_models.h"
+#include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 /* ---------- constants */
 
@@ -615,6 +616,7 @@ void _rasterizer_model_end(
 			!local_do_not_change_z_stencil_states)
 		{
 			rasterizer_set_stencil_mode(RASTERIZER_STENCIL_MODE_REJECT);
+			viewmodel_projection_end();	/* port: (view_fov.c) */
 			rasterizer_set_frustum_z(0.0f, 0.0f);
 		}
 		local_parameters = NULL;
@@ -643,6 +645,8 @@ void _rasterizer_model_begin(
 			!do_not_change_z_stencil_states)
 		{
 			rasterizer_set_stencil_mode(RASTERIZER_STENCIL_MODE_WRITE);
+			/* port: the first-person weapon's projection (view_fov.c) */
+			viewmodel_projection_begin();
 			rasterizer_set_frustum_z(
 				rasterizer_globals.first_person_weapon_near_clip_distance,
 				rasterizer_globals.first_person_weapon_far_clip_distance);
@@ -1684,6 +1688,12 @@ void _rasterizer_model_draw(
 
 		if (local_model_effect_type == _render_model_effect_type_active_camouflage)
 		{
+			/* port: camouflage draws parts as model shaders. A Custom Edition
+			map's model can have parts with other shader types (an environment
+			shader on a first-person weapon); those aren't drawn while
+			camouflaged instead of being misread. */
+			if (shader->base.type != _shader_type_model)
+				return;
 			match_assert(
 				"c:\\halo\\SOURCE\\rasterizer\\xbox\\rasterizer_xbox_models.c",
 				729,

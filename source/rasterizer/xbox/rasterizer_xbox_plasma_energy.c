@@ -40,8 +40,18 @@ symbols in this file:
 #include <xtl.h>
 #include "rasterizer/xbox/rasterizer_xbox_pixel_shader.h"
 #include "rasterizer/rasterizer_console_vars.h"
+#include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 /* ---------- constants */
+
+/* port: rasterizer_xbox_transparent_geometry.c's
+_rasterizer_geometry_first_person_bit */
+#define PLASMA_GEOMETRY_FIRST_PERSON_BIT 7
+/* port: the farthest the shield's flare is pushed out from the first-person
+arms (display.viewmodel_shield), in world units: a body's shield stands off
+much farther than an arm's radius, which so close to the camera fills the
+view */
+#define PLASMA_FIRST_PERSON_MAXIMUM_OFFSET 0.0075f
 
 /* ---------- macros */
 
@@ -55,7 +65,8 @@ struct plasma_runtime_parameters
 
 struct rasterizer_transparent_geometry_group_plasma
 {
-	byte reserved00[0xC];
+	unsigned long geometry_flags; /* port: (the first-person bit) */
+	byte reserved04[8];
 	struct shader *shader;
 	short bitmap_sequence_index;
 	byte reserved12[0x5A];
@@ -111,7 +122,9 @@ typedef char pixel_shader_definition_size_assert[
 
 /* ---------- prototypes */
 
-void rasterizer_set_texture(
+/* port: the definition's type (rasterizer_xbox.h), which WebAssembly calls
+it by */
+union point2d *rasterizer_set_texture(
 	short stage,
 	short bitmap_type,
 	short bitmap_index,
@@ -125,6 +138,10 @@ void rasterizer_set_vertex_shader_permutation(
 
 void rasterizer_set_pixel_shader(
 	struct pixel_shader_definition const *definition);
+
+/* port: port/linux/game/shield_color.c */
+boolean shield_color_override(real_rgb_color const *colors, real_rgb_color *chosen);
+void shield_color_apply(real_rgb_color const *chosen, real_rgb_color const *original, real_rgb_color *result);
 
 /* ---------- globals */
 
@@ -144,6 +161,7 @@ void rasterizer_plasma_energy_draw(
 	real_rgb_color const *tint;
 	real intensity;
 	real offset;
+	real offset_amount; /* port: PLASMA_FIRST_PERSON_MAXIMUM_OFFSET */
 	real primary_time;
 	real secondary_time;
 	real primary_scale;
@@ -151,6 +169,9 @@ void rasterizer_plasma_energy_draw(
 	real vertex_constants[6][4];
 	real color_constants[3][4];
 	short source;
+	real_rgb_color perpendicular_color; /* port: (shield_color.c) */
+	real_rgb_color parallel_color;
+	real_rgb_color chosen;
 
 	match_assert(
 		"c:\\halo\\SOURCE\\rasterizer\\xbox\\rasterizer_xbox_plasma_energy.c",
@@ -163,6 +184,14 @@ void rasterizer_plasma_energy_draw(
 		tint = global_real_rgb_white;
 		intensity = 1.0f;
 		offset = 0.0f;
+		/* port: the shield on the first-person arms kept close to them */
+		offset_amount = plasma->offset_amount;
+		if (viewmodel_shield_is_visible() &&
+			TEST_FLAG(group->geometry_flags, PLASMA_GEOMETRY_FIRST_PERSON_BIT) &&
+			offset_amount > PLASMA_FIRST_PERSON_MAXIMUM_OFFSET)
+		{
+			offset_amount = PLASMA_FIRST_PERSON_MAXIMUM_OFFSET;
+		}
 		runtime = group->runtime_parameters;
 		if (runtime)
 		{
@@ -183,8 +212,19 @@ void rasterizer_plasma_energy_draw(
 				if (source >= 1 && source <= 4)
 					offset = (real)pow(
 						(double)runtime->exponents[source - 1],
-						(double)plasma->offset_exponent) * plasma->offset_amount;
+						(double)plasma->offset_exponent) * offset_amount;
 			}
+		}
+
+		/* port: a local player's shield in the color chosen for it
+		(port/linux/game/shield_color.c) */
+		perpendicular_color = plasma->perpendicular_color;
+		parallel_color = plasma->parallel_color;
+		if (shield_color_override(runtime ? runtime->colors : NULL, &chosen))
+		{
+			shield_color_apply(&chosen, &plasma->perpendicular_color, &perpendicular_color);
+			shield_color_apply(&chosen, &plasma->parallel_color, &parallel_color);
+			tint = global_real_rgb_white;
 		}
 
 		rasterizer_set_texture(0, 1, 0, plasma->primary_noise_map, group->bitmap_sequence_index);
@@ -267,13 +307,13 @@ void rasterizer_plasma_energy_draw(
 		vertex_constants[4][3] = secondary_time * plasma->secondary_noise_map_animation_direction.j;
 		vertex_constants[5][2] = secondary_scale;
 		vertex_constants[5][3] = secondary_time * plasma->secondary_noise_map_animation_direction.k;
-		color_constants[1][0] = (plasma->perpendicular_color.red - plasma->parallel_color.red) * tint->red;
-		color_constants[1][1] = (plasma->perpendicular_color.green - plasma->parallel_color.green) * tint->green;
-		color_constants[1][2] = (plasma->perpendicular_color.blue - plasma->parallel_color.blue) * tint->blue;
+		color_constants[1][0] = (perpendicular_color.red - parallel_color.red) * tint->red;
+		color_constants[1][1] = (perpendicular_color.green - parallel_color.green) * tint->green;
+		color_constants[1][2] = (perpendicular_color.blue - parallel_color.blue) * tint->blue;
 		color_constants[1][3] = (plasma->perpendicular_alpha - plasma->parallel_alpha) * intensity;
-		color_constants[2][0] = plasma->parallel_color.red * tint->red;
-		color_constants[2][1] = plasma->parallel_color.green * tint->green;
-		color_constants[2][2] = plasma->parallel_color.blue * tint->blue;
+		color_constants[2][0] = parallel_color.red * tint->red;
+		color_constants[2][1] = parallel_color.green * tint->green;
+		color_constants[2][2] = parallel_color.blue * tint->blue;
 		color_constants[2][3] = intensity * plasma->parallel_alpha;
 
 		IDirect3DDevice8_SetVertexShaderConstant(global_d3d_device, -81, vertex_constants, 6);

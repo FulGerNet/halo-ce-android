@@ -2341,7 +2341,8 @@ static boolean network_game_client_map_name_is_valid(
 {
 	/* (a scenario's tag path, of which the cache takes the name after the
 	last backslash: letters, digits and a few more, none that a path reads
-	otherwise) */
+	otherwise; the [ ] ( ) + that Custom Edition maps' names use, as in
+	[H2]_Lockout, too) */
 	char const *character;
 	char const *leaf;
 
@@ -2351,7 +2352,8 @@ static boolean network_game_client_map_name_is_valid(
 	{
 		if (!((*character >= 'a' && *character <= 'z') || (*character >= 'A' && *character <= 'Z') ||
 			(*character >= '0' && *character <= '9') || *character == '_' || *character == '-' ||
-			*character == '.' || *character == ' ' || *character == '\\'))
+			*character == '.' || *character == ' ' || *character == '\\' ||
+			*character == '[' || *character == ']' || *character == '(' || *character == ')' || *character == '+'))
 		{
 			return FALSE;
 		}
@@ -2360,6 +2362,22 @@ static boolean network_game_client_map_name_is_valid(
 		return FALSE;
 	leaf = strrchr(map_name, '\\');
 	leaf = leaf ? leaf + 1 : map_name;
+	/* port: and not one of Windows's devices (con, nul, com1...), whatever
+	follows it: maps\com1.map opens the serial port there */
+	{
+		static char const *const devices[] = { "con", "prn", "aux", "nul", "com", "lpt" };
+		long stem = (long)strcspn(leaf, ". ");
+		short device;
+
+		for (device = 0; device < (short)NUMBEROF(devices); device++)
+		{
+			if (!_strnicmp(leaf, devices[device], 3) &&
+				((device < 4 && stem == 3) || (device >= 4 && stem == 4 && leaf[3] >= '0' && leaf[3] <= '9')))
+			{
+				return FALSE;
+			}
+		}
+	}
 	return *leaf && leaf[strspn(leaf, ". ")] != 0;
 }
 

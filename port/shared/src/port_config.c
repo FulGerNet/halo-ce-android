@@ -37,9 +37,9 @@ enum config_environment
 	/* the variable's text is the value ("0", "false", "no" and "off" are
 	false for a boolean) */
 	_environment_value,
-	/* the variable being set at all makes it true */
+	/* the variable being set (not empty, "0", "false", "no" or "off") makes it true */
 	_environment_set_is_true,
-	/* the variable being set at all makes it false */
+	/* the variable being set (not empty, "0", "false", "no" or "off") makes it false */
 	_environment_set_is_false,
 };
 
@@ -51,6 +51,8 @@ enum
 	_platform_all = _platform_desktop | _platform_android,
 	/* (of the desktop builds, only Windows) */
 	_platform_windows = 4,
+	/* (the web build, which has the desktop's settings, and these) */
+	_platform_web = 8,
 };
 
 struct config_setting
@@ -59,11 +61,20 @@ struct config_setting
 	enum config_type type;
 	/* as it is written in the file */
 	const char *default_value;
+	/* NULL: none, for a setting the Android app reads from the file itself */
 	const char *environment;
 	enum config_environment environment_style;
 	unsigned platforms;
 	const char *comment;
 };
+
+/* crouching's keys (in a browser C alone: a page cannot keep Ctrl+W, Ctrl+S or
+Ctrl+D, which moving and crouching would press, from the browser) */
+#ifdef HALO_WEB
+#define CROUCH_KEYS "\"C\""
+#else
+#define CROUCH_KEYS "\"Left Ctrl, C\""
+#endif
 
 static const struct config_setting config_settings[] =
 {
@@ -111,6 +122,17 @@ static const struct config_setting config_settings[] =
 		"In first person, point the view where the player aims now instead of\n"
 		"where the last tick left it: the view turns the frame the mouse moves,\n"
 		"not up to two ticks (66 ms) later." },
+	{ "display.fov", _config_real, "0.0", "HALO_FOV", _environment_value, _platform_all,
+		"The first-person view's field of view on foot, in degrees across at\n"
+		"16:9 (20 to 150); 0 keeps the stock view. Vehicles, cinematics and\n"
+		"scripted cameras keep their own." },
+	{ "display.viewmodel_fov", _config_real, "0.0", "HALO_VIEWMODEL_FOV", _environment_value, _platform_all,
+		"The first-person weapon's and hands' field of view, in degrees across\n"
+		"at 16:9 (20 to 150); 0 keeps the weapon's stock view, also when\n"
+		"display.fov widens the world." },
+	{ "display.viewmodel_visible", _config_boolean, "true", "HALO_VIEWMODEL_VISIBLE", _environment_value, _platform_all,
+		"Draw the first-person weapon, hands and what is attached to them.\n"
+		"Off, they are not drawn; firing, animation, sound and lights go on." },
 	{ "display.high_res_hud", _config_boolean, "true", "HALO_HIGH_RES_HUD", _environment_value, _platform_all,
 		"Draw the HUD (meters, counters, panels, motion sensor, reticles,\n"
 		"waypoints, scopes) from the high-res assets (8x the maps' bitmaps);\n"
@@ -167,6 +189,21 @@ static const struct config_setting config_settings[] =
 		"Reverberate the world's sounds as the place the player is in does (the\n"
 		"maps' sound environments, as the Xbox's I3DL2 reverb did); false keeps\n"
 		"them dry." },
+	{ "audio.voice_chat", _config_string, "\"push_to_talk\"", "HALO_VOICE_CHAT", _environment_value, _platform_all,
+		"Talking in network games' voice chat: \"push_to_talk\" (while\n"
+		"controls.push_to_talk is held; the microphone opens the first time),\n"
+		"\"open_mic\" (whenever the microphone hears speech), or \"off\". Others'\n"
+		"voices play whatever this is (audio.voice_volume 0 silences them)." },
+	{ "audio.voice_volume", _config_real, "1.0", "HALO_VOICE_VOLUME", _environment_value, _platform_all,
+		"The volume of the other players' voices (0 to 2)." },
+	{ "audio.output_device", _config_string, "\"default\"", "HALO_AUDIO_OUTPUT_DEVICE", _environment_value,
+		_platform_desktop,
+		"Where the game's sound and the voices play: a device's name as Settings >\n"
+		"Audio lists it, or \"default\" for the system's (also if it is not found)." },
+	{ "audio.input_device", _config_string, "\"default\"", "HALO_AUDIO_INPUT_DEVICE", _environment_value,
+		_platform_desktop,
+		"The microphone voice chat listens to: a device's name as Settings >\n"
+		"Audio lists it, or \"default\" for the system's (also if it is not found)." },
 	{ "audio.loose_sounds", _config_boolean, "false", "HALO_LOOSE_SOUNDS", _environment_value, _platform_all,
 		"For those making sounds: play each of a map's sounds that has a Halo PC\n"
 		"sound tag file of its name under the data root's tags folder\n"
@@ -174,6 +211,15 @@ static const struct config_setting config_settings[] =
 		"loose_sounds_reload reads the files again and loose_sounds false gives\n"
 		"the map's sounds back." },
 
+	{ "input.touch_controls", _config_string, "\"auto\"", "HALO_TOUCH_CONTROLS", _environment_value, _platform_android | _platform_web,
+		"The on-screen touch controls in a game: \"auto\" shows them on a\n"
+		"touchscreen while no controller is connected, \"on\" also with a\n"
+		"controller, \"off\" never. A device without a touchscreen never shows\n"
+		"them. The menus take taps in any case." },
+	{ "input.touch_aim_assist", _config_boolean, "true", "HALO_TOUCH_AIM_ASSIST", _environment_value, _platform_android | _platform_web,
+		"The touch controls' swipe aiming gets a controller's aim assist: the\n"
+		"aim slows over a target and follows a moving one. false: none, as a\n"
+		"mouse (the bullets' own autoaim stays)." },
 	{ "input.mouse_sensitivity", _config_real, "1.0", "HALO_MOUSE_SENSITIVITY", _environment_value, _platform_desktop,
 		"How far the view turns for the mouse's movement." },
 	{ "input.invert_mouse", _config_boolean, "false", "HALO_MOUSE_INVERT", _environment_set_is_true, _platform_desktop,
@@ -203,7 +249,7 @@ static const struct config_setting config_settings[] =
 		"Moving right." },
 	{ "controls.jump", _config_string, "\"Space\"", "HALO_KEY_JUMP", _environment_value, _platform_all,
 		"Jumping (and skipping cutscenes)." },
-	{ "controls.crouch", _config_string, "\"Left Ctrl, C\"", "HALO_KEY_CROUCH", _environment_value, _platform_all,
+	{ "controls.crouch", _config_string, CROUCH_KEYS, "HALO_KEY_CROUCH", _environment_value, _platform_all,
 		"Crouching." },
 	{ "controls.fire", _config_string, "\"Mouse Left\"", "HALO_KEY_FIRE", _environment_value, _platform_all,
 		"Firing." },
@@ -231,6 +277,10 @@ static const struct config_setting config_settings[] =
 		"Showing the scores (the controller's Back)." },
 	{ "controls.pause", _config_string, "\"Escape\"", "HALO_KEY_PAUSE", _environment_value, _platform_all,
 		"The pause menu (the controller's Start)." },
+	{ "controls.screenshot", _config_string, "\"F10\"", "HALO_KEY_SCREENSHOT", _environment_value, _platform_all,
+		"Save a PNG screenshot beside maps/ (press once per capture)." },
+	{ "controls.push_to_talk", _config_string, "\"V\"", "HALO_KEY_PUSH_TO_TALK", _environment_value, _platform_all,
+		"Voice chat: talk while it is held (audio.voice_chat \"push_to_talk\")." },
 
 	{ "game.console_log", _config_string, "\"important\"", "HALO_CONSOLE_LOG", _environment_value, _platform_all,
 		"What the game's console shows on screen of what it logs: \"important\"\n"
@@ -242,6 +292,12 @@ static const struct config_setting config_settings[] =
 	{ "game.language", _config_string, "\"\"", "HALO_LANGUAGE", _environment_value, _platform_all,
 		"The language the game asks the Xbox for: \"ja\", \"de\", \"fr\", \"es\" or \"it\";\n"
 		"empty for English. The game data decides what is translated." },
+	{ "game.enhanced_animations", _config_boolean, "true", "HALO_ENHANCED_ANIMATIONS", _environment_value, _platform_all,
+		"The player bipeds' grenade throws keep their legs moving (crouched,\n"
+		"in the air and in a vehicle's seat too), riders' hands leave the grips\n"
+		"to throw and reload, and a player turns with the aim while throwing;\n"
+		"false: the original animations, which freeze the legs and stand a\n"
+		"rider up." },
 	{ "game.custom_edition", _config_boolean, "true", "HALO_CUSTOM_EDITION", _environment_value, _platform_all,
 		"Load and run Halo Custom Edition maps (not those that need OpenSauce):\n"
 		"put them and Custom Edition's bitmaps.map, sounds.map and loc.map in\n"
@@ -249,6 +305,23 @@ static const struct config_setting config_settings[] =
 		"as CUSTOM SINGLEPLAYER and CUSTOM MULTIPLAYER. Their tags are checked\n"
 		"as the game's own maps' are before they run; false refuses them\n"
 		"(docs/custom_edition_caches.md)." },
+	{ "display.viewmodel_shield", _config_boolean, "false", "HALO_VIEWMODEL_SHIELD", _environment_value, _platform_all,
+		"The energy shield's flare on the first-person arms too, as on the body\n"
+		"(the stock game draws it on the body only)." },
+	{ "display.first_person_legs", _config_boolean, "false", "HALO_FIRST_PERSON_LEGS", _environment_value, _platform_all,
+		"Your own legs in first person, seen looking down: your body as others\n"
+		"see it, drawn from the waist down, moving as it moves." },
+	{ "display.shield_glow", _config_boolean, "false", "HALO_SHIELD_GLOW", _environment_value, _platform_all,
+		"Energy shields light what is around them as they flare, as plasma\n"
+		"does, in the shield's own color." },
+	{ "display.shield_glow_intensity", _config_string, "\"default\"", "HALO_SHIELD_GLOW_INTENSITY", _environment_value, _platform_all,
+		"How far the shield glow reaches: \"default\" or \"light_show\" (three\n"
+		"times as far, and at full strength from a third of the flare)." },
+	{ "display.shield_color", _config_string, "\"default\"", "HALO_SHIELD_COLOR", _environment_value, _platform_all,
+		"Your energy shield's color, as this machine draws it: \"default\" (the\n"
+		"shield's own) or a multiplayer armor color: white, black, red, blue,\n"
+		"gray, yellow, green, pink, purple, cyan, cobalt, orange, teal, sage,\n"
+		"brown, tan, maroon or salmon." },
 
 	{ "paths.data", _config_string, "\"\"", "HALO_DATA_ROOT", _environment_value, _platform_desktop,
 		"The folder holding the game data's maps folder; empty looks in the\n"
@@ -299,6 +372,35 @@ static const struct config_setting config_settings[] =
 		"in everyone's server browser: anyone can see and join it) or, false,\n"
 		"PRIVATE (only players with its invite link can join). Server Setup's\n"
 		"LISTING changes it for each game." },
+	{ "network.voice_lobby", _config_boolean, "true", "HALO_NET_VOICE_LOBBY", _environment_value, _platform_all,
+		"Hosting: voice chat in the lobby, before and after a game, where every\n"
+		"player hears every other." },
+	{ "network.voice_mode", _config_string, "\"team_global_enemy_proximity\"", "HALO_NET_VOICE_MODE",
+		_environment_value, _platform_all,
+		"Hosting: voice chat in a game: \"off\"; \"team_proximity\" (teammates\n"
+		"near); \"team_enemy_proximity\" (anyone near); \"team_global\" (all\n"
+		"teammates); or \"team_global_enemy_proximity\" (all teammates, and\n"
+		"enemies near). A game without teams has only enemies; co-op only\n"
+		"teammates." },
+	{ "network.voice_kbps", _config_integer, "24", "HALO_NET_VOICE_KBPS", _environment_value, _platform_all,
+		"Hosting: the voices' quality, in the lobby and in a game, in kilobits a\n"
+		"second (8 to 64)." },
+	{ "network.voice_proximity", _config_real, "15.0", "HALO_NET_VOICE_PROXIMITY", _environment_value,
+		_platform_all,
+		"Hosting: how near (world units: 1 is about 3 metres) a player must be\n"
+		"to be heard by proximity voice chat (5 to 100)." },
+	{ "network.votekick", _config_boolean, "true", "HALO_NET_VOTEKICK", _environment_value, _platform_all,
+		"Hosting: let the players vote to kick a player (the scoreboard's\n"
+		"right-click, or the console's votekick). More than half of the players\n"
+		"must vote, counted once per address." },
+	{ "network.votekick_minutes", _config_integer, "5", "HALO_NET_VOTEKICK_MINUTES", _environment_value,
+		_platform_all,
+		"Hosting: the minutes a player must have played on this server to start\n"
+		"a vote to kick (0 to 60); to vote, 2 minutes or this, the less." },
+	{ "network.votekick_ban_minutes", _config_integer, "30", "HALO_NET_VOTEKICK_BAN_MINUTES", _environment_value,
+		_platform_all,
+		"Hosting: the minutes a player kicked by a vote cannot join again (1 to\n"
+		"1440)." },
 	{ "network.coop_public", _config_boolean, "false", "HALO_NET_COOP_PUBLIC", _environment_value, _platform_all,
 		"Whether an online co-op game (Create Game > Internet, a SINGLEPLAYER\n"
 		"map) starts as PUBLIC or, false, PRIVATE: Server Setup's LISTING in\n"
@@ -306,32 +408,32 @@ static const struct config_setting config_settings[] =
 	{ "network.coop_friendly_fire", _config_string, "\"on\"", "HALO_NET_COOP_FRIENDLY_FIRE", _environment_value,
 		_platform_all,
 		"Whether the players of an online co-op game hurt each other: \"off\",\n"
-		"\"on\", \"shields_only\" or \"explosives_only\" (Server Setup's FRIENDLY\n"
-		"FIRE in co-op, which writes its choice here). Their AI allies they\n"
-		"always can, as in the campaign." },
+		"\"on\", \"shields_only\" or \"explosives_only\" (FRIENDLY FIRE in\n"
+		"co-op's Server Setup > Co-op Options writes its choice here). Their AI\n"
+		"allies they always can, as in the campaign." },
 	{ "network.coop_player_collisions", _config_boolean, "true", "HALO_NET_COOP_PLAYER_COLLISIONS", _environment_value,
 		_platform_all,
 		"Whether the players of an online co-op game bump into each other;\n"
 		"false, they walk through each other (the AI's characters they still\n"
-		"bump into). Server Setup's PLAYER COLLISIONS in co-op writes its\n"
-		"choice here." },
+		"bump into). PLAYER COLLISIONS in co-op's Server Setup > Co-op Options\n"
+		"writes its choice here." },
 	{ "network.coop_enemies_mode", _config_string, "\"per_player\"", "HALO_NET_COOP_ENEMIES_MODE", _environment_value,
 		_platform_all,
 		"Online co-op's extra enemies: \"none\", \"per_player\" (each squad of\n"
 		"enemies grows by coop_enemies for each player past the first) or\n"
 		"\"multiplier\" (each is coop_enemies_multiplier times as large, for any\n"
-		"number of players). Server Setup's EXTRA ENEMIES in co-op writes its\n"
-		"choice here." },
+		"number of players). EXTRA ENEMIES in co-op's Server Setup > Co-op\n"
+		"Options writes its choice here." },
 	{ "network.coop_enemies", _config_integer, "50", "HALO_NET_COOP_ENEMIES", _environment_value, _platform_all,
 		"Online co-op's extra enemies per player, a percentage: for each player\n"
 		"past the first, each squad of enemies a level places gets this much of\n"
-		"itself more (100: as many again; 25 to 200). Server Setup's PER PLAYER\n"
-		"in co-op writes its choice here." },
+		"itself more (100: as many again; 25 to 200). PER PLAYER in co-op's\n"
+		"Server Setup > Co-op Options writes its choice here." },
 	{ "network.coop_enemies_multiplier", _config_integer, "2", "HALO_NET_COOP_ENEMIES_MULTIPLIER", _environment_value,
 		_platform_all,
 		"Online co-op's static multiplier of its enemies: each squad of enemies\n"
-		"a level places is this many times as large (2 to 32). Server Setup's\n"
-		"MULTIPLIER in co-op writes its choice here." },
+		"a level places is this many times as large (2 to 32). MULTIPLIER in\n"
+		"co-op's Server Setup > Co-op Options writes its choice here." },
 	{ "network.brokers_file", _config_string, "\"brokers.txt\"",
 		"HALO_NET_BROKERS_FILE", _environment_value, _platform_all,
 		"The file of the public MQTT brokers through which the machines of an\n"
@@ -357,8 +459,9 @@ static const struct config_setting config_settings[] =
 
 	{ "debug.network_test", _config_string, "\"\"", "HALO_NETWORK_TEST", _environment_value, _platform_all,
 		"Automated system link sessions for testing (port/shared/game/network_test.c):\n"
-		"\"host:<map>\" hosts a game on that map, \"join\" joins the first game found;\n"
-		"empty for none." },
+		"\"host:<map>\" hosts a game on that map, \"join\" joins the first game found,\n"
+		"\"browse\" the one with the most players the server browser lists (not\n"
+		"co-op, if it can); empty for none." },
 	{ "debug.network_test_start", _config_real, "15.0", "HALO_NETWORK_TEST_START", _environment_value, _platform_all,
 		"Seconds after hosting that an automated test game starts." },
 	{ "debug.network_test_kill", _config_real, "0.0", "HALO_NETWORK_TEST_KILL", _environment_value, _platform_all,
@@ -380,6 +483,10 @@ static const struct config_setting config_settings[] =
 		_platform_all,
 		"The weapon network_test_pickup stands the player on: the first whose tag\n"
 		"name has this in it (\"sniper\", say); empty any." },
+	{ "debug.network_test_public", _config_boolean, "false", "HALO_NETWORK_TEST_PUBLIC", _environment_value,
+		_platform_all,
+		"The network test's host lists its game in the server browser, as Create\n"
+		"Game > Internet's PUBLIC does (debug.network_test \"browse\" joins it)." },
 	{ "debug.telnet_console", _config_boolean, "false", "HALO_TELNET_CONSOLE", _environment_set_is_true, _platform_all,
 		"Listen on 127.0.0.1 (port telnet_console_port) for a script console that\n"
 		"runs what it is sent as the game's console does, with no password; false\n"
@@ -388,6 +495,12 @@ static const struct config_setting config_settings[] =
 		_platform_all,
 		"The port of the script console (telnet_console); the Xbox's was 23, which\n"
 		"only the administrator can listen on." },
+	{ "debug.touch_targets", _config_boolean, "false", "HALO_TOUCH_TARGETS", _environment_set_is_true, _platform_all,
+		"Outline the menus' tap targets (item green, value blue, list slot yellow,\n"
+		"legend button red, the band beside a list's slots orange; the virtual\n"
+		"keyboard's keys white), mark where the last finger went down and the\n"
+		"last tap landed for 3 seconds, and log each tap with the target it hit\n"
+		"(and a value's split); to judge touch accuracy." },
 	{ "debug.network_latency", _config_real, "0.0", "HALO_NETWORK_LATENCY", _environment_value, _platform_all,
 		"Milliseconds everything received is held back (a round trip between two\n"
 		"machines of twice it), to test the netcode as over the internet; 0 none." },
@@ -416,6 +529,9 @@ static const struct config_setting config_settings[] =
 		"Quit this many seconds after the window opens; 0 never." },
 	{ "debug.hidden_window", _config_boolean, "false", "HALO_HIDDEN_WINDOW", _environment_set_is_true, _platform_desktop,
 		"Keep the window hidden (and never fullscreen)." },
+	{ "debug.voice_test", _config_boolean, "false", "HALO_VOICE_TEST", _environment_set_is_true, _platform_all,
+		"Voice chat's automated tests: a tone instead of the microphone, and\n"
+		"each voice heard logged once a second." },
 	{ "debug.null_renderer", _config_boolean, "false", "HALO_NULL_RENDERER", _environment_set_is_true, _platform_all,
 		"Run without a window, drawing nothing." },
 	{ "debug.gl_debug", _config_boolean, "false", "HALO_GL_DEBUG", _environment_set_is_true, _platform_all,
@@ -455,12 +571,34 @@ static const struct config_setting config_settings[] =
 	{ "debug.sample_seconds", _config_real, "0.0", "HALO_SAMPLE", _environment_value, _platform_android,
 		"Log where every game thread is this often, in seconds (read by the\n"
 		"app, port/android/host/host_debug.c); 0 never." },
+	{ "debug.memory_watch", _config_boolean, "true", NULL, _environment_value, _platform_android,
+		"Notice the game's writes to cached textures and vertices by page\n"
+		"protection; false compares page contents once a frame instead, which is\n"
+		"slower. Under ARM translation (the x86 emulator) the app always compares\n"
+		"contents. Read by the app from the file (port/android/host/host_main.c)." },
+#ifdef HALO_PROFILE
+	{ "debug.profile_record", _config_boolean, "false", "HALO_PROFILE_RECORD", _environment_value, _platform_all,
+		"Record a profile with no command (configure.py --profile builds): from\n"
+		"when profile_record_when says until profile_stop, a map change or the\n"
+		"end, into numbered part files in the data folder's profiles folder\n"
+		"(tools/net_report.py reads it)." },
+	{ "debug.profile_record_when", _config_string, "\"start\"", "HALO_PROFILE_RECORD_WHEN", _environment_value,
+		_platform_all,
+		"\"start\": from the first frame until the first map change; \"game\":\n"
+		"each game that is not the main menu, a recording each, until its map\n"
+		"goes." },
+	{ "debug.profile_memory", _config_integer, "256", "HALO_PROFILE_MEMORY", _environment_value, _platform_all,
+		"Megabytes a recording keeps in memory, 4 to 1024: two halves, each\n"
+		"written out as a part when it fills." },
+#endif
 };
 
 #define NUMBER_OF_CONFIG_SETTINGS (sizeof(config_settings) / sizeof(config_settings[0]))
 
 #ifdef HALO_ANDROID
 #define CONFIG_PLATFORM _platform_android
+#elif defined(HALO_WEB)
+#define CONFIG_PLATFORM (_platform_desktop | _platform_web)
 #elif defined(_WIN32)
 #define CONFIG_PLATFORM (_platform_desktop | _platform_windows)
 #else
@@ -483,8 +621,9 @@ static pthread_mutex_t config_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static void config_path(char *path, size_t size)
 {
-#ifdef HALO_ANDROID
-	/* the data folder, which the app names (port/android/host/host_main.c) */
+#if defined(HALO_ANDROID) || defined(HALO_WEB)
+	/* the data folder, which the app names (port/android/host/host_main.c;
+	on the web, port/web/src/web_main.c) */
 	const char *root = getenv("HALO_DATA_ROOT");
 
 	snprintf(path, size, "%s/config.toml", root && *root ? root : ".");
@@ -499,7 +638,7 @@ static void config_path(char *path, size_t size)
 /* the whole file, NUL terminated, or NULL; free() it */
 static char *config_read_file(const char *path, size_t *size)
 {
-#ifdef HALO_ANDROID
+#ifdef HALO_ARM64_GUEST
 	FILE *file = fopen(path, "rb");
 	char *text = NULL;
 	long length;
@@ -542,7 +681,7 @@ static char *config_read_file(const char *path, size_t *size)
 
 static int config_write_file(const char *path, const char *text)
 {
-#ifdef HALO_ANDROID
+#ifdef HALO_ARM64_GUEST
 	FILE *file = fopen(path, "wb");
 	int written;
 
@@ -765,6 +904,13 @@ static int config_text_is_false(const char *text)
 	return !strcmp(lower, "0") || !strcmp(lower, "false") || !strcmp(lower, "no") || !strcmp(lower, "off");
 }
 
+/* whether a variable that only has to be set (_environment_set_is_true or
+_environment_set_is_false) is: empty, "0", "false", "no" or "off" is not */
+static int config_environment_set(const char *text)
+{
+	return text[0] && !config_text_is_false(text);
+}
+
 static void config_set_from_text(struct config_value *value, enum config_type type, const char *text)
 {
 	switch (type)
@@ -944,9 +1090,9 @@ static void config_load(void)
 	for (index = 0; index < NUMBER_OF_CONFIG_SETTINGS; index++)
 	{
 		const struct config_setting *setting = &config_settings[index];
-		const char *environment = getenv(setting->environment);
+		const char *environment = setting->environment ? getenv(setting->environment) : NULL;
 
-		if (!environment)
+		if (!environment || (setting->environment_style != _environment_value && !config_environment_set(environment)))
 			continue;
 		switch (setting->environment_style)
 		{

@@ -75,8 +75,14 @@ symbols in this file:
 #include "networking/network_game_globals.h"
 #include "networking/network_server_manager.h"
 #include "saved games/game_state.h"
+#include "profile_sections.h" /* port: port/shared/include/profile_sections.h */
 /* port/shared/game/network_distributed.c's */
 void network_distributed_tick(void);
+
+/* port: the tick loop's steps, timed in the profiling build */
+PROFILE_SECTION(game_time_network_distributed_tick_section, "network_distributed_tick")
+PROFILE_SECTION(game_time_render_interpolation_tick_section, "render_interpolation_tick")
+PROFILE_SECTION(game_time_game_frame_section, "game_frame")
 
 /* ---------- constants */
 
@@ -296,6 +302,11 @@ void game_time_set_speed(
 {
 	match_assert("c:\\halo\\SOURCE\\game\\game_time.c", 562, game_time_globals);
 
+	/* port: a speed (a map's script's, game_speed) that is a number, not
+	negative and not past a hundred: a NaN or an infinity stopped the game's
+	time for good */
+	if (!(speed >= 0.0f && speed <= 100.0f))
+		return;
 	game_time_globals->speed = speed;
 
 	return;
@@ -468,11 +479,11 @@ void game_time_update(
 					for (update_index = 0; update_index < server_updates; update_index++)
 					{
 						game_tick();
-						render_interpolation_tick();
+						profile_scope(game_time_render_interpolation_tick_section, render_interpolation_tick();)
 						game_time_globals->server_time++;
 						game_time_globals->local_time++;
 						/* the distributed netcode's per-tick state */
-						network_distributed_tick();
+						profile_scope(game_time_network_distributed_tick_section, network_distributed_tick();)
 					}
 				}
 
@@ -488,7 +499,7 @@ void game_time_update(
 		(port/linux/game/render_interpolation.c). The frames of one tick share
 		the fraction, so what they hang off is drawn where they put it. */
 		render_interpolation_frame_begin();
-		game_frame(game_time_get_speed()*time_delta_sec);
+		profile_scope(game_time_game_frame_section, game_frame(game_time_get_speed()*time_delta_sec);)
 		render_interpolation_frame_end();
 	}
 	else

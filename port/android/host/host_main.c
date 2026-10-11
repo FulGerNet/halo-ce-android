@@ -25,12 +25,14 @@ that runs here.
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 #include <android/log.h>
+#include <jni.h>
 #include <errno.h>
 #include <ftw.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/system_properties.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <time.h>
@@ -135,6 +137,52 @@ struct environment
 	int count;
 };
 
+/* asks the activity for Android's system gesture insets via JNI
+(HaloActivity.getSystemGestureInsetsPixels); the guest calls it at every
+finger down because the insets change when the phone rotates; the method is
+found on the activity's own class because the game's native thread has the
+system's class loader, which does not know the app's classes; a change is
+logged so the log shows the value the game works with; all 0 on any failure
+(the touch controls then use the whole screen) */
+void host_gesture_insets(int *insets)
+{
+	static int logged[4] = { -1, -1, -1, -1 };
+	JNIEnv *env = (JNIEnv *)SDL_GetAndroidJNIEnv();
+	jobject activity = (jobject)SDL_GetAndroidActivity();
+	jint values[4] = { 0, 0, 0, 0 };
+	int index;
+
+	if (env && activity)
+	{
+		jclass activity_class = (*env)->GetObjectClass(env, activity);
+		jmethodID method = activity_class ? (*env)->GetMethodID(env, activity_class, "getSystemGestureInsetsPixels", "()[I") : NULL;
+		jintArray array = method ? (jintArray)(*env)->CallObjectMethod(env, activity, method) : NULL;
+
+		if (array && !(*env)->ExceptionCheck(env) && (*env)->GetArrayLength(env, array) == 4)
+			(*env)->GetIntArrayRegion(env, array, 0, 4, values);
+		/* a Java exception left pending would break the next JNI call of the
+		thread, and a failed read must leave zeros */
+		if ((*env)->ExceptionCheck(env))
+		{
+			(*env)->ExceptionClear(env);
+			for (index = 0; index < 4; index++)
+				values[index] = 0;
+		}
+		if (array)
+			(*env)->DeleteLocalRef(env, array);
+		if (activity_class)
+			(*env)->DeleteLocalRef(env, activity_class);
+		(*env)->DeleteLocalRef(env, activity);
+	}
+	for (index = 0; index < 4; index++)
+		insets[index] = (int)values[index];
+	if (memcmp(logged, insets, sizeof(logged)))
+	{
+		memcpy(logged, insets, sizeof(logged));
+		host_logf(HOST_LOG_INFO, "system gesture insets %d,%d,%d,%d", insets[0], insets[1], insets[2], insets[3]);
+	}
+}
+
 static void environment_set(struct environment *environment, const char *name, const char *value)
 {
 	size_t length = strlen(name);
@@ -179,6 +227,37 @@ static int config_sample_seconds(const char *path, char *text, size_t size)
 	}
 	toml_free(result);
 	return found;
+}
+
+/* a boolean setting of config.toml (a dotted name), or otherwise when the
+file, the setting or a boolean is missing */
+static int config_boolean_or(const char *path, const char *name, int otherwise)
+{
+	toml_result_t result = toml_parse_file_ex(path);
+	int value = otherwise;
+
+	if (!result.ok)
+		return otherwise;
+	{
+		toml_datum_t datum = toml_seek(result.toptab, name);
+
+		if (datum.type == TOML_BOOLEAN)
+			value = datum.u.boolean ? 1 : 0;
+	}
+	toml_free(result);
+	return value;
+}
+
+/* Whether the app runs through an ARM translator. The x86 emulator runs the
+app's ARM code through one, which ro.dalvik.vm.native.bridge names; it
+cannot deliver the page faults of the write tracking to the app
+(host_memory.c). */
+static int native_bridge_active(void)
+{
+	char value[PROP_VALUE_MAX] = "";
+
+	__system_property_get("ro.dalvik.vm.native.bridge", value);
+	return value[0] && strcmp(value, "0") != 0;
 }
 
 /* POSIX TZ for the current local offset (the guest's musl has no zone
@@ -233,6 +312,11 @@ static uint32_t make_boot(const struct environment *environment)
 
 #define MAIN_STACK_SIZE (16 * 1024 * 1024)
 
+/* the thread that runs the game: passes the display and its density, the
+time zone and the data and save folders to the guest through its
+environment, chooses the write tracking (page protection, or page hashes when
+translated or when debug.memory_watch is false), and runs the guest's main;
+never returns normally */
 static void *game_main(void *unused)
 {
 	struct environment environment = { { 0 }, 0 };
@@ -278,6 +362,19 @@ static void *game_main(void *unused)
 			environment_set(&environment, "HALO_DISPLAY_WIDTH", width);
 			host_logf(HOST_LOG_INFO, "display %dx%d: rendering %sx480", mode->w, mode->h, width);
 		}
+		{
+			/* dp for the touch controls (port/linux/src/touch_input.c): SDL
+			gives Android's densityDpi / 160 */
+			float density = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+			char text[16];
+
+			if (density > 0.0f)
+			{
+				snprintf(text, sizeof(text), "%g", density);
+				environment_set(&environment, "HALO_DISPLAY_DENSITY", text);
+				host_logf(HOST_LOG_INFO, "display density %s", text);
+			}
+		}
 	}
 	time_zone(zone, sizeof(zone));
 	environment_set(&environment, "TZ", zone);
@@ -299,7 +396,21 @@ static void *game_main(void *unused)
 	if (!image)
 		host_fatal("cannot read the game image from the APK: %s", SDL_GetError());
 	if (host_load_image(image, image_size) != 0)
-		host_fatal("cannot load the game image; see logcat (tag \"halo\") for details");
+	{
+		FILE *report;
+
+		if (!host_memory_fixed_unavailable())
+			host_fatal("cannot load the game image; see logcat (tag \"halo\") for details");
+
+		snprintf(path, sizeof(path), "%s/memory_map.txt", data_root);
+		report = fopen(path, "w");
+		host_memory_report_low_mappings(report);
+		if (report)
+			fclose(report);
+		host_fatal("The game cannot start: the memory it needs at 0x80000000 is taken by Android's "
+			"Java runtime on this device.\n\nRestarting the device may help. Please report it with "
+			"memory_map.txt from\n%s\n(or adb logcat -s halo).", data_root);
+	}
 	SDL_free(image);
 
 	{
@@ -308,9 +419,35 @@ static void *game_main(void *unused)
 		if (config_sample_seconds(path, seconds, sizeof(seconds)))
 			host_debug_start_sampler(seconds);
 	}
+	if (native_bridge_active())
+	{
+		host_memory_watch_use_hashes();
+		host_logf(HOST_LOG_INFO, "write tracking: page hashes (ARM translation)");
+	}
+	else if (!config_boolean_or(path, "debug.memory_watch", 1))
+	{
+		host_memory_watch_use_hashes();
+		host_logf(HOST_LOG_INFO, "write tracking: page hashes (debug.memory_watch = false)");
+	}
+	else
+	{
+		host_logf(HOST_LOG_INFO, "write tracking: page protection");
+	}
 	boot = make_boot(&environment);
 	host_logf(HOST_LOG_INFO, "data %s, saves %s", data_root, save_root);
 	host_run_guest_main(boot);
+}
+
+/* Called when HaloApplication loads this library at the start of the
+game's own process (":game"), before its Java side has allocated anything
+large: ART's large object space, which on some devices covers the Xbox
+window, is then idle there and can be reclaimed (host_memory.c). */
+JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved)
+{
+	(void)vm;
+	(void)reserved;
+	host_memory_reserve_early();
+	return JNI_VERSION_1_6;
 }
 
 int main(int argc, char *argv[])

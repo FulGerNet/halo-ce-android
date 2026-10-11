@@ -216,6 +216,11 @@ bool SDL_RumbleGamepad(SDL_Gamepad *gamepad, Uint16 low, Uint16 high, Uint32 mil
 	return host_sdl_rumble_gamepad((unsigned int)gamepad, low, high, milliseconds) != 0;
 }
 
+void SDL_CloseGamepad(SDL_Gamepad *gamepad)
+{
+	host_sdl_close_gamepad((unsigned int)gamepad);
+}
+
 /* ---------- audio */
 
 SDL_AudioStream *SDL_OpenAudioDeviceStream(SDL_AudioDeviceID device, const SDL_AudioSpec *spec,
@@ -233,4 +238,19 @@ bool SDL_PutAudioStreamData(SDL_AudioStream *stream, const void *data, int lengt
 bool SDL_ResumeAudioStreamDevice(SDL_AudioStream *stream)
 {
 	return host_sdl_resume_audio_stream_device((unsigned int)stream) != 0;
+}
+
+int SDL_GetAudioStreamData(SDL_AudioStream *stream, void *data, int length)
+{
+	return host_sdl_get_audio_stream_data((unsigned int)stream, data, length);
+}
+
+int SDL_GetAudioStreamAvailable(SDL_AudioStream *stream)
+{
+	return host_sdl_get_audio_stream_available((unsigned int)stream);
+}
+
+void SDL_DestroyAudioStream(SDL_AudioStream *stream)
+{
+	host_sdl_destroy_audio_stream((unsigned int)stream);
 }

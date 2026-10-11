@@ -90,7 +90,9 @@ with ideas from VALORANT's netcode articles, keeping the 30 Hz tick:
 - **Corrections.** The host sends each client the authoritative state of
   the players' units and the game's moving objects; a client moves its
   copies toward it, a small error half of the way each tick, a larger one
-  at once, drawn gliding from where they were. A client's own unit and
+  at once, drawn gliding from where they were (a player's moved at once
+  is on the teleporter it lands on, as a teleporter leaves one it sends,
+  so the client's does not send it back). A client's own unit and
   vehicle are only corrected past a tolerance, so prediction does not
   rubber-band: the host tells the client which of the client's ticks it
   has its player at (its prediction come back), and the client compares
@@ -120,7 +122,13 @@ with ideas from VALORANT's netcode articles, keeping the 30 Hz tick:
   than the player goes of their own (and up, what its tick added but a
   jump's), so a client that says it goes faster (a copy said to hover and
   fall, gaining the host's gravity each tick) gains nothing by it. A
-  teleporter, which moves the host's own copy too, starts afresh.
+  teleporter, which moves the host's own copy too, starts afresh. On a
+  moving elevator the host takes only where a client's player is across,
+  not how high: the client's elevator follows the host's (co-op's device
+  sync), so its player's height reaches the host a round trip behind the
+  host's elevator, under its floor going up, where the host's copy would
+  fall through it. Each machine's elevator carries its own copy up and
+  down, and they meet where it stops.
 - **Shooter's hits.** A client reports what its own players hit; the host
   checks the report (the player's, a weapon they carry, fired from within
   its reach, the target where the host had it when the shooter saw it, no
@@ -176,7 +184,10 @@ lists a public game with a password with its invite's token sealed with the
 password's key (`p2p_lobby.c`), a listing of another layout; version 21
 sends each killing blow again reliably and an object come to rest three
 times (a client waits for a player's blow before its body dies without one),
-and switches co-op's BSP on the host's crossing alone.
+and switches co-op's BSP on the host's crossing alone; version 26 has each
+machine say its WebRTC in internet play's signalling (a native build's
+certificate, a browser's ICE credentials too), so that browsers play
+(port/linux/README.md, "Browsers").
 
 A client plays by its host's rules: in another's game (searching for it,
 in its lobby, or playing it) the developer console, the telnet console
@@ -231,6 +242,45 @@ machine tells them: anyone with administrator or root access can change
 them, and players behind one address share it. The console's `kick <player
 name>` drops a player as `ban` does (every machine told), but adds no line
 and keeps no address out: the player may join again at once.
+
+The players' votes to kick a player (`network_votekick.c`): a client sends
+`_distributed_message_votekick` (the player's absolute index) reliably, and
+the host takes it only from the client's stream. The host alone counts:
+one vote per real address (an internet play peer's endpoint, not its
+stand-in), and votes again deduplicated by hardware id, which only ever
+removes votes (the players who may vote are counted by address alone, so a
+copied hardware id cannot lower the votes needed). A vote needs more than
+half of the players who may vote, the target counted, and at least two;
+starting one needs `network.votekick_minutes` played on this host in its
+own ticks, voting two minutes; one vote runs at a time, and a failed vote
+cools its starter down and protects its target. A vote that passes kicks as
+the `kick` command does, and the host refuses the address and hardware id
+for `network.votekick_ban_minutes`. The host sends each client
+`_distributed_message_votekick_status` every second while a vote runs (and
+as it changes), for the scoreboard, whose right click frees the mouse to
+pick a player; the host's own scoreboard adds Kick and Ban. Builds without
+votes drop both kinds as unknown, so the network version is unchanged.
+
+Voice chat (`network_voice.c`, the sound in `port/linux/src/voice_audio.c`)
+travels as distributed messages too, but in the lobby as well as in a game:
+`network_voice_handles_message` takes them before the netcode's checks that
+a game is running (`network_distributed_handle_message`, and the host's
+stream and datagram paths in `network_server_message_handler.c`). A client
+sends its 20 ms Opus frames to the host unreliably
+(`_distributed_message_voice_up`), each with the key the host gave it over
+its stream (`_distributed_message_voice_config`, with the host's settings,
+again every ten seconds and when they change), so a datagram sent as from
+another machine is dropped; an empty one every two seconds says it hears
+voices. The host checks the key, the frame's size against its quality, a
+rate of 50 frames a second (a burst of 10), and at most 8 machines talking,
+then sends the frame to each machine that may hear it
+(`_distributed_message_voice_down`, with that machine's key) by its
+`network.voice_mode`, `network.voice_lobby` and `network.voice_proximity`,
+or plays it itself. The host never decodes a frame it only relays, and
+never sends a machine its own. A listener sets the gain and pan of a voice
+heard for being near by its own view of the speaker's unit. Mutes are each
+machine's own. Builds without voice chat never say they hear voices, so the
+host sends them none, and drop the kinds as unknown.
 A speed hack of less than a tenth is let be: the host's bounds on how far
 and how fast a client's player moves and fires hold it to the host's time
 anyway.
@@ -325,7 +375,9 @@ a pregame keep-alive every five seconds from the host
      indices from the upper half of the object array, clear of the host's.
    - Ten times a second, what every unit carries (the host's weapons, slot
      for slot, their ammunition, the weapon in hand, the grenades); a
-     client moves the same weapon objects in and out of its units. A
+     client moves the same weapon objects in and out of its units, which
+     carry no grenades until the host says (not the unit tag's: a player
+     spawned with the button held threw one the host's copy had not). A
      change of weapons or grenades goes to every client at once; one of
      ammunition only to the unit's player's machine at once, and to the
      others as often as they are sent that player. A client takes its own
@@ -379,8 +431,9 @@ a pregame keep-alive every five seconds from the host
      player; damage one of their weapons (a vehicle's a driver's or
      gunner's; now or in the last ten seconds), a grenade the host's own game
      saw them throw in the last ten seconds that has not gone off (each
-     throw's explosion is taken once, its other hits that tick with it:
-     holding grenades deals nothing) or the vehicle they drove (in the
+     throw's explosion is taken once, its other hits and its other damage
+     (a frag grenade's shock wave) that tick with it: holding grenades
+     deals nothing) or the vehicle they drove (in the
      last ten seconds: its collisions) can deal (its projectiles' impacts
      and detonations, followed through the tags), no harder than it can be
      (all of it, but an airborne melee blow's half again); of the shape the
@@ -564,7 +617,10 @@ swap the bots' wandering does not reach (`debug.network_test_pickup_weapon`
 picks the weapon: the first whose tag name has it in it, as "sniper"), and `debug.network_test_score`
 shortens the game, to test the next (`host:<map>:<variant>,<variant>...`
 plays the variants in turn, the next once a game is over, as the host's
-button on the scores does). `debug.network_latency` and
+button on the scores does). `debug.network_test_public` lists the host's
+game in the server browser, and `browse` joins the one listed there with the
+most players (not co-op, if it can), as the server browser does
+(port/web/tests/internet.mjs plays the native build and browsers so). `debug.network_latency` and
 `debug.network_loss` hold back what a machine receives and drop some of its
 datagrams, to test as over the internet. `debug.network_corrupt` damages
 that share of the datagrams a machine receives at random (bytes changed,

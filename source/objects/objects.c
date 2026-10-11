@@ -55,6 +55,8 @@ OBJECTS.C
 #include "units/units.h"
 /* port: object_bounds_cache.c's */
 void object_bounds_cache_update(long object_index, real_point3d const *center, real radius);
+/* port: port/linux/game/first_person_legs.c's */
+void first_person_legs_reset(void);
 
 /* ---------- constants */
 
@@ -560,7 +562,8 @@ void object_pvs_set_camera_point(
 void objects_port_set_activating_cluster(
 	short cluster_index)
 {
-	if (cluster_index == NONE || cluster_index >= global_structure_bsp_get()->clusters.count)
+	/* (port: a co-op host sends it, so any index outside the BSP's clusters is none) */
+	if (cluster_index < 0 || cluster_index >= global_structure_bsp_get()->clusters.count)
 	{
 		object_globals->pvs_activation_type = _pvs_activation_normal;
 		return;
@@ -1068,6 +1071,9 @@ void objects_initialize_for_new_map(
 	widgets_initialize_for_new_map();
 	object_types_initialize_for_new_map();
 	lights_initialize_for_new_map();
+	/* port: the last map's waist and mesh forgotten
+	(port/linux/game/first_person_legs.c) */
+	first_person_legs_reset();
 	
 	data_make_valid(object_header_data);
 	object_name_list_clear();
@@ -3680,7 +3686,9 @@ long object_new(
 	if (object_index==NONE && definition_index!=NONE)
 	{
 		char string[512];
-		sprintf(string, "OUT OF OBJECTS: cannot create %s", tag_name_strip_path(tag_get_name(definition_index)));
+		/* port: snprintf (a map's tag's name may be any length) */
+		snprintf(string, sizeof(string), "OUT OF OBJECTS: cannot create %s",
+			tag_name_strip_path(tag_get_name(definition_index)));
 		console_printf(FALSE, "%s", string);
 		error(_error_log, "%s", string);
 	}
@@ -4659,6 +4667,23 @@ static void object_name_list_new(
 			TAG_BLOCK_GET_ELEMENT(&global_scenario_get()->object_names, name_index, struct scenario_object_name)->name);
 	}
 
+	return;
+}
+
+/* the name is free: deleting the vehicle that held it cleared the slot.
+A name something else still holds stays with that object. */
+void object_claim_scenario_name(
+	long object_index,
+	short name_index)
+{
+	if (object_index == NONE ||
+		!VALID_INDEX(name_index, MIN(global_scenario_get()->object_names.count, MAXIMUM_OBJECT_NAMES_PER_SCENARIO)) ||
+		object_name_list[name_index] != NONE)
+	{
+		return;
+	}
+
+	object_name_list_new(object_index, name_index);
 	return;
 }
 

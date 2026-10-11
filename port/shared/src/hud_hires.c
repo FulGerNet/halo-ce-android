@@ -6,16 +6,18 @@ uploaded, and each one's GL texture.
 
 Which bitmap is at an address the game knows (from the loaded map's tags:
 port/shared/game/hud_hires_tags.c). Each texture is decoded from its PNG when
-first drawn and kept: up to 69 of the HUD's, about 225 MB with their mip
+first drawn and kept: up to 71 of the HUD's, about 227 MB with their mip
 levels, though a game draws only some (the scopes' only when zoomed), and
 the titles of the menus shown, about 3 MB each (11 MB for the carnage
-report's, a whole panel).
+report's, a whole panel), and their button icons, about 0.3 MB each (5.3
+MB for the message icons' sheet).
 They are drawn with linear filtering and their mip levels (d3d8_gl.c,
 configure_sampler), as they are larger than they appear.
 
-The PNGs are the ones tools/hud_assets.py and title_assets.py write, so only
-what they write is read: 8-bit RGBA, not interlaced, its data inflated with
-the port's zlib (port/third_party/zlib: a menus folder's PNGs are anyone's).
+The embedded PNGs are the ones tools/hud_assets.py, title_assets.py and
+button_assets.py write. A menus folder's PNGs can be anyone's. Only 8-bit
+RGBA, non-interlaced PNGs are read, with their data inflated by the port's
+zlib (port/third_party/zlib).
 */
 
 #include "hud_hires.h"
@@ -109,6 +111,89 @@ int hud_hires_override_coverage(long asset)
 	return asset >= 0 && asset < hud_hires_asset_count() && hud_hires_embedded[asset].coverage;
 }
 
+/* ---------- sprites */
+
+/* the placeholders of the textures drawn for some of a bitmap's sprites
+(port/shared/game/hud_hires_tags.c): their D3D textures' Data */
+#define MAXIMUM_PLACEHOLDERS 8
+
+static struct
+{
+	unsigned long data;
+	long asset;
+} placeholders[MAXIMUM_PLACEHOLDERS];
+static long placeholder_count = 0;
+
+/* the sequences whose sprites the texture is drawn for (hud_hires.h), or 0 */
+unsigned long hud_hires_asset_sprites(long asset)
+{
+	return hud_hires_embedded[asset].sprites;
+}
+
+/* whether the texture drawn for some of a bitmap's sprites can be drawn for
+the bitmap whose pixels are at address (guest virtual; its first mip level
+level0_size bytes): its setting on, the pixels those it was drawn for, and
+the texture decoded */
+int hud_hires_sprites_drawable(long asset, unsigned long address, unsigned long level0_size)
+{
+	static int hud_enabled, titles_enabled;
+	static unsigned long read_at = (unsigned long)-1;
+	unsigned long levels;
+
+	if (read_at != config_changes())
+	{
+		read_at = config_changes();
+		hud_enabled = config_boolean("display.high_res_hud");
+		titles_enabled = config_boolean("display.high_res_text");
+	}
+	if (asset < 0 || asset >= hud_hires_asset_count() || !hud_hires_embedded[asset].sprites ||
+		!(hud_hires_embedded[asset].title ? titles_enabled : hud_enabled))
+	{
+		return 0;
+	}
+	if (crc32(0L, (const Bytef *)address, (uInt)level0_size) != hud_hires_embedded[asset].crc)
+	{
+		if (!textures[asset].other_pixels_logged)
+		{
+			platform_log("high-res hud: %s bitmap %d is not the one its sprites' texture was drawn for "
+				"here (another language's or a modified map): drawn as it is",
+				hud_hires_embedded[asset].tag, hud_hires_embedded[asset].bitmap);
+			textures[asset].other_pixels_logged = 1;
+		}
+		return 0;
+	}
+	return hud_hires_override_texture(asset, &levels) != 0;
+}
+
+/* the placeholder the game draws the texture's sprites from: its D3D
+texture (NULL forgets it) */
+void hud_hires_register_placeholder(long asset, const unsigned long *texture)
+{
+	long index;
+
+	for (index = 0; index < placeholder_count && placeholders[index].asset != asset; index++)
+		;
+	if (texture && index == placeholder_count && placeholder_count < MAXIMUM_PLACEHOLDERS)
+		placeholder_count++;
+	if (index < placeholder_count)
+	{
+		placeholders[index].data = texture ? texture[1] : 0;
+		placeholders[index].asset = asset;
+	}
+}
+
+unsigned int hud_hires_placeholder_texture(unsigned long data, unsigned long *levels)
+{
+	long index;
+
+	for (index = 0; data && index < placeholder_count; index++)
+	{
+		if (placeholders[index].data == data)
+			return hud_hires_override_texture(placeholders[index].asset, levels);
+	}
+	return 0;
+}
+
 int hud_hires_override_point_threshold(long asset)
 {
 	return asset >= 0 && asset < hud_hires_asset_count() && hud_hires_embedded[asset].point_threshold;
@@ -185,6 +270,8 @@ static unsigned char *png_decode(const unsigned char *data, unsigned long size, 
 	ended when the output is exactly full: all of it is enough) */
 	if ((result != Z_OK && result != Z_BUF_ERROR) || inflated_size != filtered_size)
 		goto failed;
+	/* (each row by its filter, the first pixel's 4 bytes, which have none to
+	their left, apart; the first row has none above: zeroes) */
 	for (row = 0; row < height; row++)
 	{
 		const unsigned char *line = filtered + row * (stride + 1) + 1;
@@ -194,22 +281,38 @@ static unsigned char *png_decode(const unsigned char *data, unsigned long size, 
 
 		if (filter > 4)
 			goto failed;
-		for (column = 0; column < stride; column++)
+		if (!above && filter == 2)
+			filter = 0; /* (up: zero) */
+		else if (!above && filter == 4)
+			filter = 1; /* (Paeth of left, zero and zero: left) */
+		switch (filter)
 		{
-			unsigned char left = column >= 4 ? out[column - 4] : 0;
-			unsigned char up = above ? above[column] : 0;
-			unsigned char up_left = above && column >= 4 ? above[column - 4] : 0;
-			unsigned char predicted;
-
-			switch (filter)
-			{
-			case 1: predicted = left; break;
-			case 2: predicted = up; break;
-			case 3: predicted = (unsigned char)(((unsigned)left + up) / 2); break;
-			case 4: predicted = paeth(left, up, up_left); break;
-			default: predicted = 0; break;
-			}
-			out[column] = (unsigned char)(line[column] + predicted);
+		case 0:
+			memcpy(out, line, stride);
+			break;
+		case 1:
+			memcpy(out, line, 4);
+			for (column = 4; column < stride; column++)
+				out[column] = (unsigned char)(line[column] + out[column - 4]);
+			break;
+		case 2:
+			for (column = 0; column < stride; column++)
+				out[column] = (unsigned char)(line[column] + above[column]);
+			break;
+		case 3:
+			for (column = 0; column < 4; column++)
+				out[column] = (unsigned char)(line[column] + (above ? above[column] : 0) / 2);
+			for (column = 4; column < stride; column++)
+				out[column] = (unsigned char)(line[column] +
+					((unsigned)out[column - 4] + (above ? above[column] : 0)) / 2);
+			break;
+		default:
+			/* (Paeth of zero, up and zero: up) */
+			for (column = 0; column < 4; column++)
+				out[column] = (unsigned char)(line[column] + above[column]);
+			for (column = 4; column < stride; column++)
+				out[column] = (unsigned char)(line[column] + paeth(out[column - 4], above[column], above[column - 4]));
+			break;
 		}
 	}
 	free(compressed);

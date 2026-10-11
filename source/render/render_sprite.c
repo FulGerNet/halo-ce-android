@@ -89,6 +89,8 @@ symbols in this file:
 #include "cache/texture_cache.h"
 #include "tag_files/tag_files.h"
 #include "tag_files/tag_groups.h"
+#include "custom_edition_cache.h" /* port: port/linux/game/custom_edition_cache.c */
+#include "view_fov.h" /* port: port/linux/game/view_fov.c */
 
 /* ---------- constants */
 
@@ -213,6 +215,9 @@ void build_sprites_begin(
 		!TEST_FLAG(flags, _build_sprites_valid_bit));
 
 	data->bitmap_group_index = bitmap_group_index;
+	/* port: the first-person weapon's projection (view_fov.c) */
+	if (TEST_FLAG(flags, _build_sprites_first_person_bit))
+		viewmodel_projection_begin();
 	data->flags = flags;
 	data->shader = shader;
 	data->group_count = 0;
@@ -282,6 +287,9 @@ void build_sprites_end(
 	}
 
 	SET_FLAG(data->flags, _build_sprites_valid_bit, FALSE);
+	/* port: (view_fov.c) */
+	if (TEST_FLAG(data->flags, _build_sprites_first_person_bit))
+		viewmodel_projection_end();
 	return;
 }
 
@@ -617,6 +625,10 @@ void build_sprite_rotational(
 		&axis_of_rotation) - quarter_circle;
 	fraction = angle*angle/(quarter_circle*quarter_circle);
 	fraction = PIN(fraction, 0.f, 1.f);
+	/* port: the edge-on sprite is in the next sequence, which some Custom
+	Edition bitmaps don't have; those always draw the face-on sprite */
+	if (first_sequence_index+1 >= bitmap_group_get(data->bitmap_group_index)->sequences.count)
+		fraction = 0.f;
 
 	if (fraction>0.05f)
 	{
@@ -773,15 +785,34 @@ static short build_sprite_get_group(
 			break;
 	}
 
-	match_vassert(
-		"c:\\halo\\SOURCE\\render\\render_sprite.c",
-		275,
-		group_index < data->group_count ||
-			data->group_count < MAXIMUM_BUILD_SPRITE_GROUPS,
-		csprintf(
-			temporary,
-			"a build_sprites_begin call can accomodate at most %d bitmaps",
-			MAXIMUM_BUILD_SPRITE_GROUPS));
+	/* port: a Halo PC map's particle may be drawn from more bitmaps than a
+	call takes (beavercreek_rev_beta's fluid bursts have a bitmap a frame, up
+	to 56), which halted a debug build: its sprites on the others are not
+	drawn, as a release build already did, and it is logged once. The Xbox's
+	maps' particles stay within the limit. */
+	if (custom_edition_cache_tags_loaded())
+	{
+		static boolean logged;
+
+		if (group_index >= data->group_count && data->group_count >= MAXIMUM_BUILD_SPRITE_GROUPS && !logged)
+		{
+			error(_error_silent, "%s: a particle's sprites on more than %d bitmaps; those past them are not drawn",
+				tag_get_name(data->bitmap_group_index), MAXIMUM_BUILD_SPRITE_GROUPS);
+			logged = TRUE;
+		}
+	}
+	else
+	{
+		match_vassert(
+			"c:\\halo\\SOURCE\\render\\render_sprite.c",
+			275,
+			group_index < data->group_count ||
+				data->group_count < MAXIMUM_BUILD_SPRITE_GROUPS,
+			csprintf(
+				temporary,
+				"a build_sprites_begin call can accomodate at most %d bitmaps",
+				MAXIMUM_BUILD_SPRITE_GROUPS));
+	}
 
 	if (group_index < data->group_count ||
 		data->group_count < MAXIMUM_BUILD_SPRITE_GROUPS)

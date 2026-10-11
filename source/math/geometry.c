@@ -318,20 +318,12 @@ struct geosphere *geosphere_new(
 					&vertex_index, &triangle_strip_vertex_indices_index, vertex_subdivision_indices);
 			}
 
-			/* BUG (preserved for exact matching): at segment_count == 1,
-			 * January fills the allocated strip buffer but rejects equality.
-			 * A corrected build should allow a fully filled valid buffer.
-			 */
 			match_assert("c:\\halo\\SOURCE\\math\\geometry.c", 98,
-				triangle_strip_vertex_indices_index < (NUMBER_OF_VERTICES_PER_TRIANGLE + 1) * result->triangle_count);
+				triangle_strip_vertex_indices_index <= (NUMBER_OF_VERTICES_PER_TRIANGLE + 1) * result->triangle_count);
 			match_assert("c:\\halo\\SOURCE\\math\\geometry.c", 99, vertex_index == result->vertex_count);
 		}
 		else
 		{
-			/* BUG (preserved for exact matching): January frees allocated
-			 * children but returns the owner with dangling member pointers.
-			 * A corrected build should free the owner and return NULL.
-			 */
 			if (result->vertices)
 			{
 				match_free("c:\\halo\\SOURCE\\math\\geometry.c", 103, result->vertices);
@@ -340,6 +332,8 @@ struct geosphere *geosphere_new(
 			{
 				match_free("c:\\halo\\SOURCE\\math\\geometry.c", 104, result->triangle_strip_vertex_indices);
 			}
+			match_free("c:\\halo\\SOURCE\\math\\geometry.c", 105, result);
+			result = NULL;
 		}
 
 		if (vertex_subdivision_indices)
@@ -727,8 +721,8 @@ short convex_hull2d(
 		real accumulated_angle = 0.f;
 		real minimum_x = REAL_MAX;
 		real minimum_y = REAL_MAX;
-		short current_index;
-		short best_index;
+		short current_index = 0;
+		short best_index = 0;
 		short index;
 
 		for (index = 0; index < vertex_count; index++)
@@ -771,11 +765,6 @@ short convex_hull2d(
 				break;
 			}
 
-			/* current_index and best_index are assigned only inside the scans. For finite
-			 * points with dimension 2 both scans assign them; a NaN or infinite coordinate can
-			 * leave either unassigned. Not shown reachable: the callers' points (king hill
-			 * markers, lens flare projections) were not traced for non-finite values.
-			 * Source-policy approval pending (2026-09-27 audit). */
 			hull_indices[hull_count++] = current_index;
 
 			for (index = 0; index < vertex_count; index++)

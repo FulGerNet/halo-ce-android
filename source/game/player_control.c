@@ -195,6 +195,7 @@ symbols in this file:
 #include "cutscene/cinematics.h"
 #include "input/input.h"
 #include "input/input_abstraction.h"
+#include "interface/ui_widget.h"
 #include "interface/player_ui.h"
 #include "items/weapons.h"
 #include "main/main.h"
@@ -611,6 +612,23 @@ static void player_action_clear(
 	return;
 }
 
+/* port: whether a menu of the player's own is up (a network game's pause
+menu, which pauses nothing): its controller drives the menu, not the player,
+whose D-pad and sticks would otherwise move them as they move about it. The
+buttons still held as it closes are let go of first (ui_widget_delete). */
+static boolean player_control_port_menu_has_controller(
+	short local_player_index)
+{
+	long player_index = local_player_get_player_index(local_player_index);
+	short gamepad_index;
+
+	if (player_index == NONE)
+		return FALSE;
+	gamepad_index = player_get(player_index)->local_player_index;
+	return gamepad_index >= 0 && gamepad_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS &&
+		ui_widgets_active_for_local_player(gamepad_index);
+}
+
 static void handle_one_player_input(
 	short local_player_index,
 	real time_delta_sec)
@@ -643,7 +661,8 @@ static void handle_one_player_input(
 			player->desired_angles.yaw);
 	}
 
-	if (director_inhibited_input(local_player_index))
+	if (director_inhibited_input(local_player_index) ||
+		player_control_port_menu_has_controller(local_player_index))
 	{
 		csmemset(&input, 0, sizeof(input));
 	}
@@ -1152,6 +1171,8 @@ static void get_local_player_input_blob(
 					real yaw_spin_scale;
 					real pitch_spin_scale;
 					real_euler_angles2d look_delta;
+					/* port: the touch controls' swipe or gyroscope this frame */
+					boolean touching = FALSE;
 
 					if (input_state->buttons[_button_scope_zoom] &&
 						controls_enable_doubled_spin)
@@ -1185,6 +1206,33 @@ static void get_local_player_input_blob(
 						constants->look_function.count,
 						constants->look_function.address,
 						clamped_pitch) * pitch_spin_scale * look_pitch_rate;
+					{
+						/* port: the touch controls' swipe (port/shared/src/xinput_sdl.c),
+						a turn this frame, made a rate as the stick's look is: the
+						zoom, the stun and the magnetism below act on it as on the
+						stick's, so that it slows over a target and follows a moving
+						one (input.touch_aim_assist); the swipe inverted as the stick
+						is, the gyroscope as the phone turns */
+						extern int halo_linux_touch_look(short gamepad_index, real *yaw, real *pitch, real *gyro_yaw,
+							real *gyro_pitch);
+						real touch_yaw;
+						real touch_pitch;
+						real gyro_yaw;
+						real gyro_pitch;
+						real touch_scale = time_delta_sec * TICKS_PER_SECOND;
+
+						if (halo_linux_touch_look(gamepad_index, &touch_yaw, &touch_pitch, &gyro_yaw, &gyro_pitch) &&
+							touch_scale > _real_epsilon)
+						{
+							touching = TRUE;
+							if (input_abstraction_port_look_inverted(gamepad_index))
+							{
+								touch_pitch = -touch_pitch;
+							}
+							look_delta.yaw += (touch_yaw + gyro_yaw) / touch_scale;
+							look_delta.pitch += (touch_pitch + gyro_pitch) / touch_scale;
+						}
+					}
 
 					if (player->unit_index != NONE && control->zoom_level != NONE)
 					{
@@ -1242,16 +1290,19 @@ static void get_local_player_input_blob(
 							&target_angular_position,
 							&target_angular_velocity);
 						{
-							/* no magnetism for the mouse (port/shared/src/xinput_sdl.c) */
+							/* no magnetism for the mouse (port/shared/src/xinput_sdl.c),
+							nor for the touch controls without their aim assist */
 							extern int halo_linux_mouse_aiming(short gamepad_index);
+							extern int halo_linux_touch_aiming(short gamepad_index);
 
-							if (halo_linux_mouse_aiming(gamepad_index))
+							if (halo_linux_mouse_aiming(gamepad_index) || halo_linux_touch_aiming(gamepad_index))
 							{
 								control->magnetism_level = 0.f;
 							}
 						}
 						if (player_magnetism_flag && control->magnetism_level > 0.f &&
-							(fabs(clamped_yaw) > _real_epsilon ||
+							(touching ||
+							fabs(clamped_yaw) > _real_epsilon ||
 							fabs(clamped_pitch) > _real_epsilon ||
 							fabs(input->throttle.i) > _real_epsilon ||
 							fabs(input->throttle.j) > _real_epsilon))

@@ -1012,6 +1012,17 @@ static void object_damage_shield(
 	return;
 }
 
+/* port: damage from a player who is gone (an older checkpoint's, a grenade
+still flying) keeps its object and team, but not his handle, which a new
+player in his slot would get the credit of; after the network's admission
+of the damage (network_damage_deals), which needs the handle */
+static void damage_data_validate_owner(
+	struct damage_data *damage)
+{
+	if (damage->owner_player_index != NONE && !player_try_and_get(damage->owner_player_index))
+		damage->owner_player_index = NONE;
+}
+
 static void object_damage_aftermath(
 	long object_index,
 	struct damage_data *damage,
@@ -1026,6 +1037,9 @@ static void object_damage_aftermath(
 		object_definition_get(object->definition_index);
 	struct damage_effect_definition *damage_effect =
 		damage_effect_definition_get(damage->definition_index);
+
+	/* port: (a client's replay of the host's nonlethal damage too) */
+	damage_data_validate_owner(damage);
 
 	if (object_definition->object.acceleration_scale > _real_epsilon)
 	{
@@ -1435,6 +1449,9 @@ void object_cause_damage(
 	{
 		return;
 	}
+
+	/* port: a player who is gone is credited with nothing */
+	damage_data_validate_owner(damage);
 
 	damage_effect = damage_effect_definition_get(damage->definition_index);
 	damage_definition = &damage_effect->damage;

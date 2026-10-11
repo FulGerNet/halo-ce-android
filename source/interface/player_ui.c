@@ -367,6 +367,13 @@ struct player_profile *player_ui_get_edit_player_profile(
 	return result;
 }
 
+/* port: the saved game file being edited (NONE for none) */
+long player_ui_get_edit_profile_index(
+	void)
+{
+	return player_ui_globals.edit_profile_index;
+}
+
 struct game_variant *player_ui_get_edit_playlist_profile(
 	void)
 {
@@ -805,6 +812,24 @@ boolean player_ui_save_profile(
 			player_profile_save(
 				player_ui_globals.edit_profile_index,
 				&player_ui_globals.edit_profile.current.player);
+			/* port: a local player playing with the profile gets its
+			changes now (its button and stick layouts, sensitivity,
+			inversion), not when the profile is next chosen */
+			{
+				short local_player_index;
+
+				for (local_player_index = 0; local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS; local_player_index++)
+				{
+					if (player_ui_globals.local_players[local_player_index].active_profile_index ==
+						player_ui_globals.edit_profile_index)
+					{
+						player_ui_set_active_player_profile(
+							local_player_index,
+							player_ui_globals.edit_profile_index,
+							&player_ui_globals.edit_profile.current.player);
+					}
+				}
+			}
 			result = TRUE;
 			break;
 
@@ -1207,6 +1232,35 @@ void player0_look_invert_pitch(
 	}
 
 	set_local_player_controls_from_player_profile(0);
+	return;
+}
+
+/* port: a saved game file deleted (delete_enumerated_saved_game_file): the
+files after it moved down its memory unit's list, so the indices of the
+players' profiles and the one being edited follow them, and none is left
+naming the file deleted. A player profile deleted before the one in use
+left that one's index naming the next file, often the next profile made,
+which the profile in use was then saved over (taking its name, while its
+folder kept the new profile's name, which then read as in use). */
+void player_ui_saved_game_file_removed(
+	long removed_index)
+{
+	short local_player_index;
+
+	for (local_player_index = 0; local_player_index < MAXIMUM_NUMBER_OF_LOCAL_PLAYERS; local_player_index++)
+	{
+		player_ui_globals.local_players[local_player_index].active_profile_index =
+			saved_game_file_index_after_removal(
+				player_ui_globals.local_players[local_player_index].active_profile_index,
+				removed_index);
+	}
+	player_ui_globals.edit_profile_index = saved_game_file_index_after_removal(
+		player_ui_globals.edit_profile_index,
+		removed_index);
+	player1_last_used_profile_index = saved_game_file_index_after_removal(
+		player1_last_used_profile_index,
+		removed_index);
+
 	return;
 }
 

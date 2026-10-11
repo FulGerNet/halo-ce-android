@@ -111,7 +111,7 @@ const char *platform_data_root(void)
 						snprintf(root, sizeof(root), "%s", executable);
 				}
 			}
-#ifndef HALO_ANDROID
+#if !defined(HALO_ANDROID) && !defined(HALO_WEB)
 			if (!has_maps(root) && executable_directory[0] && platform_offer_game_data(executable_directory) &&
 				has_maps(executable_directory))
 			{
@@ -423,7 +423,12 @@ static BOOL read_at(struct platform_file *file, LPVOID buffer, DWORD count, LPDW
 		if (result == 0)
 			break;
 		if (bounce)
+		{
+			/* (where pages are watched by their hashes, port/web, so that a
+			page long unchanged is checked again in the next frame) */
+			memory_watch_prepare_write((char *)buffer + total, (unsigned long)result);
 			memcpy((char *)buffer + total, staging, (size_t)result);
+		}
 		total += (DWORD)result;
 	}
 	free(staging);

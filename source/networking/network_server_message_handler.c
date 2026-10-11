@@ -267,6 +267,9 @@ symbols in this file:
 
 /* port/shared/game/network_distributed.c's */
 void network_distributed_handle_message(long machine_index, word const *message, word size);
+/* port/shared/game/network_voice.c's: voice chat, in the lobby too */
+boolean network_voice_handles_message(word const *message, word size);
+void network_voice_handle_message(long machine_index, word const *message, word size);
 void network_distributed_handle_stream_message(long machine_index, word const *message, word size);
 
 /* ---------- constants */
@@ -1364,6 +1367,19 @@ boolean network_game_server_handle_client_message(
 
 			case _message_type_data:
 				/* the distributed netcode's messages (port/shared/NETCODE.md) */
+				/* (port: voice chat's from any machine that joined, in the
+				lobby too: network_voice.c) */
+				if (network_voice_handles_message(message, message_buffer_size))
+				{
+					long machine_index;
+
+					if (network_game_server_client_machine_is_joined_to_game(server, machine) &&
+						network_game_server_get_client_machine(server, machine, &machine_index))
+					{
+						network_voice_handle_message(machine_index, message, message_buffer_size);
+					}
+					break;
+				}
 				/* (in game, from a machine that has loaded it, as a datagram
 				is: else dropped) */
 				if (network_game_server_client_machine_is_joined_to_game(server, machine) &&
@@ -1561,6 +1577,18 @@ boolean network_game_server_handle_datagram(
 
 			case _message_type_data:
 				/* the distributed netcode's messages (port/shared/NETCODE.md) */
+				/* (port: voice chat's from any machine that joined, in the
+				lobby too, its key checked: network_voice.c) */
+				if (network_voice_handles_message(message, datagram_size))
+				{
+					struct network_game_server_client_machine *client_machine =
+						network_game_server_get_client_machine_at_address(server, source_address->address.long_words[0]);
+					long machine_index;
+
+					if (client_machine && network_game_server_get_client_machine(server, client_machine, &machine_index))
+						network_voice_handle_message(machine_index, message, datagram_size);
+					break;
+				}
 				/* (from a machine in the game, which the lookup finds only among
 				those that joined, and only in game: else dropped) */
 				if (network_game_server_get_state(server, NULL) == _network_game_server_state_ingame)
@@ -2005,7 +2033,9 @@ static boolean network_game_server_handle_message_client_join_game_request(
 						struct message_server_machine_rejected rejection;
 						struct network_message *reply;
 
-						rejection.reason = _network_game_server_rejection_reason_game_not_open;
+						/* port: a banned machine is told so (it was told the
+						game is not open) */
+						rejection.reason = network_game_server_last_refusal_code();
 						network_event(
 							"server failed to accept valid client machine '%s' @%s into the game",
 							join_game_request.machine_name,

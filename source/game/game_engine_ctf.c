@@ -622,11 +622,6 @@ static void ctf_engine_player_update(
 						{
 							ctf_award_capture(player_index, player->team_index);
 							ctf_player_drop_flag(player_index, weapon_index);
-							/* BUG (preserved for exact matching): January (and the
-							   later HCEA build) call game_engine_get_variant() here
-							   and discard the result. A corrected build should drop
-							   this statement. */
-							game_engine_get_variant();
 						}
 						else
 						{
@@ -865,7 +860,8 @@ static wchar_t *ctf_get_score_header_string(
 	else
 		string = L"";
 
-	ustrcpy(buffer, string);
+	/* port: bounded (a map's text, into its callers' score_string[256]) */
+	ustrncpy_terminated(buffer, string, 256);
 
 	return buffer;
 }
@@ -899,7 +895,7 @@ static boolean ctf_engine_display_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			string,
+			ustring_format_checked(string, "dd"),
 			ctf_globals.scores[_team_red],
 			ctf_globals.scores[_team_blue]);
 		break;
@@ -917,7 +913,7 @@ static boolean ctf_engine_display_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			string,
+			ustring_format_checked(string, "dd"),
 			ctf_globals.scores[team_index],
 			ctf_globals.scores[other_team_index]);
 		break;
@@ -935,7 +931,7 @@ static boolean ctf_engine_display_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			string,
+			ustring_format_checked(string, "dd"),
 			ctf_globals.scores[team_index],
 			ctf_globals.scores[other_team_index]);
 		break;
@@ -953,7 +949,7 @@ static boolean ctf_engine_display_score(
 		usnprintf(
 			buffer,
 			buffer_size,
-			string,
+			ustring_format_checked(string, "dd"),
 			ctf_globals.scores[team_index],
 			ctf_globals.scores[other_team_index]);
 		break;

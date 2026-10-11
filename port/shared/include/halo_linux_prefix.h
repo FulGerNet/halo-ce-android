@@ -10,8 +10,20 @@ byte-for-byte identical to what the matching MSVC build compiles.
 #ifndef __HALO_LINUX_PREFIX_H
 #define __HALO_LINUX_PREFIX_H
 
-#if !defined(__i386__) && !defined(HALO_ANDROID)
+#if !defined(__i386__) && !defined(HALO_ARM64_GUEST) && !defined(__wasm32__)
 #error the Linux port targets 32-bit x86: game data structures assume 32-bit pointers
+#endif
+
+/* ---------- WebAssembly: no return addresses
+
+WebAssembly code has no address to return to: Emscripten makes one up by
+walking a JavaScript stack trace, which the game's datum lookups (data.c's
+data_usable, for its report of a broken array) and the HUD's paired stack
+checks (hud_draw.c's get_return_eip) asked for thousands of times a frame:
+most of a frame's time. The address would name nothing a log could use
+anyway, so it is 0 there. */
+#ifdef __wasm32__
+#define __builtin_return_address(level) ((void *)0)
 #endif
 
 /* ---------- XDK architecture selection (MSVC predefines these) */

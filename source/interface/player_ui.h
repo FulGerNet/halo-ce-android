@@ -43,6 +43,9 @@ long player_ui_get_active_player_profile_index(
 	short local_player_index);
 struct player_profile *player_ui_get_edit_player_profile(
 	void);
+/* port: the saved game file being edited (NONE for none) */
+long player_ui_get_edit_profile_index(
+	void);
 struct game_variant *player_ui_get_edit_playlist_profile(
 	void);
 /* port: the PC options (game_engine.h) of the gametype being edited, and of
@@ -114,6 +117,9 @@ boolean player_ui_prompt_user_to_rename_edit_profile(
 	void);
 void player0_look_invert_pitch(
 	boolean invert);
+/* port: a saved game file deleted (saved_game_files.c) */
+void player_ui_saved_game_file_removed(
+	long removed_index);
 
 /* ---------- globals */
 

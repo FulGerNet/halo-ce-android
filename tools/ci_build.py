@@ -53,9 +53,14 @@ def main():
         ("miniupnpc/LICENSE", "miniupnpc-LICENSE.txt"),
         ("stb/LICENSE", "stb-LICENSE.txt"),
         ("monocypher/LICENCE.md", "monocypher-LICENCE.txt"),
-        ("expat/COPYING", "expat-COPYING.txt")
+        ("expat/COPYING", "expat-COPYING.txt"),
+        # internet play's DTLS with browsers and voice chat's codec
+        ("mbedtls/LICENSE", "mbedtls-LICENSE.txt"),
+        ("opus/COPYING", "opus-COPYING.txt")
     ]:
         shutil.copy2(ROOT / "port/third_party" / source, dist / destination)
+    # voice chat's speaker icons, drawn into the menus' bitmaps
+    shutil.copy2(ROOT / "port/assets/icons/lucide/LICENSE", dist / "lucide-LICENSE.txt")
 
     for license in (ROOT / "port/assets/fonts").glob("*-*.txt"):
         if "LICENSE" in license.name or "OFL" in license.name:

@@ -114,9 +114,10 @@ that window at start-up and hands out page-granular blocks from it, so the
 physical/virtual arithmetic the game and Direct3D rely on keeps working. */
 
 #define PLATFORM_CONTIGUOUS_BASE 0x80000000UL
-#ifdef HALO_ANDROID
+#if defined(HALO_ARM64_GUEST) || defined(HALO_WEB)
 /* 128 MB, a development kit's: Android's guest image is linked just above
-the window (port/android/include/halo_android_abi.h) */
+the window (port/android/include/halo_android_abi.h), and the web build's
+WebAssembly memory ends with it (tools/web_build.py) */
 #define PLATFORM_CONTIGUOUS_SIZE 0x08000000UL
 #else
 /* 512 MB on the desktop builds, whose caches outgrow the Xbox's (Custom
@@ -162,6 +163,10 @@ unsigned long memory_watch_serial(void);
 void memory_watch_prepare_write(void *address, unsigned long size);
 /* the range was remapped or reprotected: treat it as written and unwatched */
 void memory_watch_forget(void *address, unsigned long size);
+/* a new frame starts (Present): tracking that compares page contents
+(Android under ARM translation, host_watch_hash.h) hashes a page at most
+once a frame, so it sees a write in the next frame, not at once */
+void memory_watch_begin_frame(void);
 
 /* ---------- time */
 

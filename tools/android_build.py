@@ -26,8 +26,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .android_sources import (ANDROID_PROFILE, MINIUPNPC_DEFINES, MINIUPNPC_DIR, MUSL_MATH_DIR, XDK_INCLUDE,
-                          compile_launcher, game_defines_and_includes, game_sources, miniupnpc_sources,
-                          musl_math_sources, pgo_mode, pgo_profile,
+                          compile_launcher, configuration_defines, game_defines_and_includes, game_sources,
+                          miniupnpc_sources, musl_math_sources, opus_cflags, opus_sources, pgo_mode, pgo_profile,
                           profile_use_flags, updater_defines, xdk_headers)
 from .embed_assets import hud_assets_build, hud_configure_inputs
 from .ninja_syntax import Writer
@@ -76,6 +76,8 @@ TOML_DIR = Path("port/third_party/tomlc17")
 EXPAT_DIR = Path("port/third_party/expat")
 EXPAT_SOURCES = ("xmlparse.c", "xmlrole.c", "xmltok.c")
 KCP_DIR = Path("port/third_party/kcp")
+# internet play's DTLS with browsers (port/shared/src/posix_dtls.c, in the host)
+MBEDTLS_DIR = Path("port/third_party/mbedtls")
 MONOCYPHER_DIR = Path("port/third_party/monocypher")
 # the port's zlib (port/third_party/zlib/zlib_prefixed.h): what inflates the
 # maps, the menus' and the HUD's PNGs and the updates, data from anywhere,
@@ -88,6 +90,7 @@ ZLIB_DEFINES = ("-DZ_PREFIX", "-Dz_errmsg=z_port_errmsg")
 MUSL_VERSION = "1.2.5"
 MUSL_DIR = THIRD_PARTY / f"musl-{MUSL_VERSION}"
 MUSL_URL = f"https://musl.libc.org/releases/musl-{MUSL_VERSION}.tar.gz"
+# (as tools/windows_build.py's and tools/linux_sysroot.py's SDL_VERSION)
 SDL_TAG = "release-3.4.16"
 SDL_DIR = THIRD_PARTY / "SDL3"
 SDL_URL = "https://github.com/libsdl-org/SDL.git"
@@ -105,6 +108,10 @@ GUEST_ABI_FLAGS = [
     "-fno-define-target-os-macros",
     "-D__linux__=1",
     "-D__unix__=1",
+    # the ILP32 guest's code paths, the OpenGL ES renderer's, and the app's
+    # (in the port's sources, each its own macro)
+    "-DHALO_ARM64_GUEST=1",
+    "-DHALO_GLES=1",
     "-DHALO_ANDROID=1",
     # ARMv8.0: nothing the emulator's binary translation or an older
     # device could lack (Darwin targets otherwise assume pointer
@@ -436,7 +443,7 @@ def generate_android_build(n: Writer, sln: Any) -> None:
         f"-isystem {libc_include}", f"-isystem {arch}", f"-isystem {MUSL_DIR}/arch/generic",
         f"-isystem {MUSL_DIR}/include",
     ]
-    guest_abi = " ".join(GUEST_ABI_FLAGS + (["-DHALO_RELEASE"] if getattr(sln, "port_release", False) else []))
+    guest_abi = " ".join(GUEST_ABI_FLAGS + configuration_defines(sln))
     guest_code = " ".join(GUEST_CODE_FLAGS)
     tool_implicit = [Path("tools/android_asm_convert.py"), *generated_headers]
     # The inherited profile optimizes common engine functions. Changed or
@@ -526,6 +533,10 @@ def generate_android_build(n: Writer, sln: Any) -> None:
         objects.append(guest_object(EXPAT_DIR / name, platform_cflags))
     # internet play's reliable streams (port/third_party/kcp; p2p.c)
     objects.append(guest_object(KCP_DIR / "ikcp.c", platform_cflags))
+    # voice chat's codec (port/third_party/opus), with the guest's ABI and C
+    # library
+    for source in opus_sources():
+        objects.append(guest_object(source, " ".join([opus_cflags(guest_abi), *libc_includes])))
     # internet play's signatures, for public games' listings
     # (port/third_party/monocypher; p2p_crypto.c)
     for name in ("monocypher.c", "monocypher-ed25519.c"):
@@ -634,6 +645,15 @@ def generate_android_build(n: Writer, sln: Any) -> None:
                               else source.name + ".o")
         n.build(outputs=obj, rule="android_host_cc", inputs=source,
                 variables={"cflags": miniupnpc_cflags + (" -w" if source.name != "posix_upnp.c" else "")})
+        host_objects.append(obj)
+    # internet play's DTLS with browsers (posix_dtls.c, with
+    # port/third_party/mbedtls), as the other posix_*.c in the host
+    mbedtls_cflags = " ".join([host_cflags, f"-I{MBEDTLS_DIR / 'include'}", f"-I{MBEDTLS_DIR / 'library'}"])
+    for source in [SHARED_DIR / "src" / "posix_dtls.c", *sorted((MBEDTLS_DIR / "library").glob("*.c"))]:
+        obj = host_obj_dir / ("mbedtls_" + source.name + ".o" if source.parent.parent == MBEDTLS_DIR
+                              else source.name + ".o")
+        n.build(outputs=obj, rule="android_host_cc", inputs=source,
+                variables={"cflags": mbedtls_cflags + (" -w" if source.name != "posix_dtls.c" else "")})
         host_objects.append(obj)
     table_obj = host_obj_dir / "host_import_table.c.o"
     n.build(outputs=table_obj, rule="android_host_cc", inputs=host_table_c, variables={"cflags": host_cflags})

@@ -64,6 +64,7 @@ same datum index (identifier and all), so that any message can name one:
 #include "cutscene/cinematics.h"
 #include "network_coop.h"
 #include "network_distributed.h"
+#include "profile_sections.h"
 
 #include <math.h>
 
@@ -243,6 +244,10 @@ enum
 	/* (struct distributed_object_state, the host's) the host has the vehicle
 	where the client it goes to had it at the tick in time */
 	_distributed_object_predicted_bit,
+	/* (struct distributed_object_state) a unit's integrated light is on, and
+	the host sent it at all: older builds leave both 0, which is not "off" */
+	_distributed_object_light_sent_bit,
+	_distributed_object_light_on_bit,
 };
 
 struct distributed_object_change
@@ -672,6 +677,18 @@ static boolean distributed_vehicle_unsteered(
 		unit_get(vehicle->unit.driver_object_index)->unit.player_index == NONE;
 }
 
+/* whether this machine's player drives the unit: it is their biped, or the
+vehicle they drive */
+static boolean distributed_unit_driven_here(
+	long unit_index)
+{
+	struct unit_datum *unit = unit_get(unit_index);
+
+	if (unit->unit.driver_object_index != NONE)
+		unit = unit_get(unit->unit.driver_object_index);
+	return unit->unit.player_index != NONE && distributed_player_is_local(unit->unit.player_index);
+}
+
 /* Whether a client puts its copy exactly where the host has it, rather than
 closing on it: an unsteered vehicle, and anything in a co-op cutscene
 (where it keeps up with the host's camera). */
@@ -807,6 +824,12 @@ static void distributed_state_from_object(
 	SET_FLAG(state->flags, _distributed_object_at_rest_bit, TEST_FLAG(object->object.flags, _object_at_rest_bit));
 	SET_FLAG(state->flags, _distributed_object_dead_bit, TEST_FLAG(_object_mask_unit, object->object.type) &&
 		TEST_FLAG(object->object.damage_flags, _object_dead_bit));
+	if (TEST_FLAG(_object_mask_unit, object->object.type))
+	{
+		SET_FLAG(state->flags, _distributed_object_light_sent_bit, TRUE);
+		SET_FLAG(state->flags, _distributed_object_light_on_bit,
+			TEST_FLAG(unit_get(object_index)->unit.flags, _unit_integrated_light_on_bit));
+	}
 	state->position = object->object.position;
 	distributed_vector_pack(&object->object.forward, DISTRIBUTED_UNIT_SCALE, &state->forward);
 	distributed_vector_pack(&object->object.up, DISTRIBUTED_UNIT_SCALE, &state->up);
@@ -1976,15 +1999,22 @@ void network_objects_apply_vehicle_predictions(
 	}
 }
 
+/* the host tick's steps, timed in the profiling build */
+PROFILE_SECTION(objects_host_tick_update_objects_section, "network_objects_host_tick.update_objects")
+PROFILE_SECTION(objects_host_tick_find_viewers_section, "network_objects_host_tick.find_viewers")
+PROFILE_SECTION(objects_host_tick_send_states_section, "network_objects_host_tick.send_states")
+PROFILE_SECTION(objects_host_tick_send_inventories_section, "network_objects_host_tick.send_inventories")
+PROFILE_SECTION(objects_host_tick_send_damage_animations_section, "network_objects_host_tick.send_damage_animations")
+
 void network_objects_host_tick(
 	void)
 {
-	distributed_host_update_objects();
-	distributed_host_find_viewers();
-	distributed_host_send_states();
+	profile_scope(objects_host_tick_update_objects_section, distributed_host_update_objects();)
+	profile_scope(objects_host_tick_find_viewers_section, distributed_host_find_viewers();)
+	profile_scope(objects_host_tick_send_states_section, distributed_host_send_states();)
 	if (game_time_get() % INVENTORY_INTERVAL_TICKS == 0)
-		distributed_host_send_inventories();
-	distributed_host_send_damage_animations();
+		profile_scope(objects_host_tick_send_inventories_section, distributed_host_send_inventories();)
+	profile_scope(objects_host_tick_send_damage_animations_section, distributed_host_send_damage_animations();)
 }
 
 /* ---------- a client */
@@ -2316,6 +2346,12 @@ static void distributed_client_create(
 		return;
 	}
 	objects_client_has[absolute_index] = object_index;
+	/* (a unit's grenades are the host's, which its inventories bring: none
+	until they come, not the tag's that unit_new gave it, which the host's
+	game engine replaces with the game's at a player's spawn: a player
+	spawned with the button held threw one here the host's copy had not) */
+	if (TEST_FLAG(_object_mask_unit, object_get(object_index)->object.type))
+		csmemset(unit_get(object_index)->unit.grenade_counts, 0, sizeof(unit_get(object_index)->unit.grenade_counts));
 	distributed_client_apply_change(object_index, change);
 }
 
@@ -2490,6 +2526,17 @@ void network_objects_handle_states(
 		if (!distributed_object_index_valid(state->object_index) || !network_objects_client_has(state->object_index))
 			continue;
 		object = object_get(state->object_index);
+		/* (the unit's light as the host has it: only presses toggle it here,
+		so one missed, or made before this machine joined, left it wrong for
+		good. Not for what this machine's player drives: their press lands
+		here first) */
+		if (TEST_FLAG(state->flags, _distributed_object_light_sent_bit) &&
+			TEST_FLAG(_object_mask_unit, object->object.type) &&
+			!distributed_unit_driven_here(state->object_index))
+		{
+			SET_FLAG(unit_get(state->object_index)->unit.flags, _unit_integrated_light_on_bit,
+				TEST_FLAG(state->flags, _distributed_object_light_on_bit));
+		}
 		if (TEST_FLAG(state->flags, _distributed_object_dead_bit))
 		{
 			distributed_client_dead_biped(state->object_index);

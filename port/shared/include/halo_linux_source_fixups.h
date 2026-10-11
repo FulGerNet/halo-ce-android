@@ -1,21 +1,11 @@
 /*
 HALO_LINUX_SOURCE_FIXUPS.H
 
-Game-only workarounds for source that MSVC accepts but clang rejects, where
-editing the source itself would change the byte-matched MSVC output (see
-port/shared/README.md for how each was checked).
+The port's functions that the game's sources call, declared for them.
 */
 
 #ifndef __HALO_LINUX_SOURCE_FIXUPS_H
 #define __HALO_LINUX_SOURCE_FIXUPS_H
-
-/* rasterizer.h declares rasterizer_debug_drawing_begin(boolean opaque) while
-rasterizer_xbox_debug.h declares a second `long zbias` parameter, and
-rasterizer_debug.c includes both and passes two arguments. MSVC tolerates
-the mismatch; the definition ignores zbias. Adding the parameter to
-rasterizer.h perturbs MSVC's register allocation elsewhere, so instead every
-declaration and call collapses to the one-parameter form here. */
-#define rasterizer_debug_drawing_begin(opaque, ...) (rasterizer_debug_drawing_begin)(opaque)
 
 /* frames between the 30 Hz ticks (port/shared/game/render_interpolation.c);
 the platform layer reads the display.interpolation setting */
@@ -57,6 +47,8 @@ unsigned char custom_edition_vehicle_placement_allowed(struct scenario_object_da
 /* the width of the screen the game draws, 480 lines tall: the device's or
 the display's shape, or 640 (port/shared/src/d3d8_gl.c) */
 long halo_screen_width(void);
+/* the screen's pixels to the Xbox's one (port/shared/src/d3d8_gl.c) */
+float halo_screen_scale(void);
 /* takes up a new width between frames (F11); returns the width */
 long halo_screen_commit(void);
 /* the shadow maps' pixels for each of their 128 texels each way, a power of

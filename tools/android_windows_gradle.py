@@ -12,6 +12,6 @@ Path(env["ANDROID_USER_HOME"]).mkdir(parents=True, exist_ok=True)
 variant = sys.argv[1] if len(sys.argv) > 1 else "debug"
 if variant not in ("debug", "release"):
     raise SystemExit("Expected debug or release")
-subprocess.run(["cmd", "/c", "gradlew.bat", "--console=plain", "assemble"+variant.capitalize()],
+subprocess.run(["cmd", "/c", ".\\gradlew.bat", "--console=plain", "assemble"+variant.capitalize()],
                cwd=root / "port/android", env=env, check=True)
 (root / f"port/android/app/build/outputs/apk/{variant}/app-{variant}.apk").touch()

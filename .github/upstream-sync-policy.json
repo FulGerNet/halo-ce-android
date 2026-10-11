@@ -9,14 +9,20 @@
   "removed": [
     "port/windows/",
     "port/linux/",
-    "port/third_party/mbedtls/",
     "tools/linux_build.py",
     "tools/linux_link_check.py",
     "tools/windows_build.py",
     "tools/pgo_train.py",
     "tools/system_link_bots.py",
     "tools/test_linux_port.py",
-    "pgo/halo_windows.profdata"
+    "pgo/halo_windows.profdata",
+    "port/web/",
+    "tools/web_build.py",
+    "tools/web_serve.py",
+    "tools/test_web_build.py",
+    "tools/linux_sysroot.py",
+    "tools/linux_sysroot.cmake",
+    "tools/test_profile.py"
   ],
   "text_relocations": {
     "port/linux/": "port/shared/",

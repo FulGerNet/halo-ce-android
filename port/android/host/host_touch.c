@@ -307,3 +307,16 @@ void host_touch_read(int32_t *state)
 	memcpy(state, touch_state, sizeof(touch_state));
 	pthread_mutex_unlock(&touch_lock);
 }
+
+/* Upstream's touch controls (port/shared/src/touch_input.c) publish the scene
+   and the profile's bindings. This overlay tracks the menus through
+   host_touch_ui_context and draws icons, so both are accepted and unused. */
+void host_touch_scene(int scene)
+{
+    (void)scene;
+}
+
+void host_touch_bindings(const int32_t *controls)
+{
+    (void)controls;
+}

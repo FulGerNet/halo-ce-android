@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 from tools import ninja_syntax
 from tools.android_build import android_configure_inputs, generate_android_build
+from tools.android_sources import check_profile_options
 
 # arguments
 parser = argparse.ArgumentParser()
@@ -24,6 +25,11 @@ parser.add_argument(
     "--release",
     action="store_true",
     help="Android release build: assertions are not checked",
+)
+parser.add_argument(
+    "--profile",
+    action="store_true",
+    help="profiling build: CPU scopes recorded on a console command or launch setting",
 )
 parser.add_argument(
     "--pgo",
@@ -48,12 +54,17 @@ parser.add_argument(
     help="clang with the arm64_32 target for the Android guest (default: clang)",
 )
 args = parser.parse_args()
+try:
+    check_profile_options(args.profile, args.pgo)
+except ValueError as error:
+    parser.error(str(error))
 
 # the settings the builds read
 sln = SimpleNamespace(
     build_dir=Path("build"),
     compiler_launcher=args.compiler_launcher,
     port_release=args.release,
+    port_profile=args.profile,
     port_pgo=args.pgo,
     port_pgo_profile=args.pgo_profile,
     android_ndk=args.android_ndk,

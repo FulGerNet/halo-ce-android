@@ -10,7 +10,7 @@ logs=root/'build/version-code-tests';logs.mkdir(parents=True,exist_ok=True)
 for name,number,expected in [('unset',None,count),('blank','',count),('invalid','not-a-number',count),('explicit','3589',3589)]:
     if number is None:env.pop('HALO_BUILD_NUMBER',None)
     else:env['HALO_BUILD_NUMBER']=number
-    command = ['cmd','/c','gradlew.bat'] if os.name=='nt' else ['./gradlew']
+    command = ['cmd','/c','.\\gradlew.bat'] if os.name=='nt' else ['./gradlew']
     with (logs/(name+'.log')).open('w',encoding='utf-8') as log:
         subprocess.run([*command,'--console=plain',':app:generateDebugBuildConfig'],cwd=root/'port/android',env=env,stdout=log,stderr=subprocess.STDOUT,check=True)
     source=(root/'port/android/app/build/generated/source/buildConfig/debug/com/halo/decomp/BuildConfig.java').read_text()

@@ -829,8 +829,8 @@ static long actor_look_idle_timer(
 	struct actor_datum *actor = actor_get(actor_index);
 	struct actor_definition *definition = actor_definition_get(actor->meta.definition_index);
 	struct weapon_definition *weapon_definition = actor_get_weapon_definition(actor_index);
-	real time_lower_bound;
-	real time_upper_bound;
+	real time_lower_bound = 0.0f;
+	real time_upper_bound = 0.0f;
 	real time;
 	long ticks;
 
@@ -848,10 +848,6 @@ static long actor_look_idle_timer(
 		time_lower_bound = looking_definition->idle_look_time_lower_bound;
 		time_upper_bound = looking_definition->idle_look_time_upper_bound;
 		break;
-	/* time_lower_bound and time_upper_bound are left unassigned only by this default arm. Not reached unassigned: the
-	 * arm's assertion failure calls system_exit, which does not return in January
-	 * (0x47c960 jumps to halt_and_catch_fire 0x4f21c0, which loops or calls exit).
-	 * Source-policy approval pending (2026-09-27 audit). */
 	default:
 		match_vassert(
 			"c:\\halo\\SOURCE\\ai\\actor_looking.c",
@@ -1116,14 +1112,10 @@ static boolean actor_look_decode_direction(
 			switch (specification->type)
 			{
 			case _direction_specification_movement:
-				/* BUG (preserved for exact matching): January loads the point's
-				 * z field twice (actor + 0x514). A corrected diagnostic should
-				 * print the y field as its second point component.
-				 */
 				sprintf(temporary, "denormalized %f: %smoving (p%f %f %f) (v%f %f %f)",
 					magnitude, actor->control.moving ? "" : "not ",
 					actor->control.moving_towards_point.x,
-					actor->control.moving_towards_point.z,
+					actor->control.moving_towards_point.y,
 					actor->control.moving_towards_point.z,
 					actor->control.moving_towards_vector.i,
 					actor->control.moving_towards_vector.j,

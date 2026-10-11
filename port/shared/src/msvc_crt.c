@@ -1,8 +1,8 @@
 /*
 MSVC_CRT.C
 
-Microsoft C runtime functions the game (and its copies of libtiff and zlib)
-call that glibc does not provide under the same names, plus the Xbox-path
+Microsoft C runtime functions the game (and its copy of zlib) call that
+glibc does not provide under the same names, plus the Xbox-path
 aware fopen/open family that the game's headers redirect to (see
 port/shared/include/stdio.h).
 */
@@ -295,7 +295,7 @@ static unsigned short msvc_to_control_word(unsigned int value, unsigned short wo
 	return word;
 }
 
-#ifdef HALO_ANDROID
+#ifdef HALO_ARM64_GUEST
 /* AArch64: the rounding mode lives in FPCR.RMode, the sticky exception
 flags in FPSR. Precision control and exception unmasking have no
 equivalent; the rest of the MSVC control word is only remembered. */
@@ -350,6 +350,33 @@ unsigned int _clearfp(void)
 
 	__builtin_arm_wsr64("fpsr", __builtin_arm_rsr64("fpsr") & ~0x9fULL);
 	return status;
+}
+#elif defined(HALO_WEB)
+/* WebAssembly: rounding to nearest and no exception flags, always. The MSVC
+control word is only remembered, so that the game reads back what it set. */
+static unsigned int msvc_control_word = CW_DEFAULT;
+
+unsigned int _control87(unsigned int new_value, unsigned int mask)
+{
+	if (mask)
+		msvc_control_word = (msvc_control_word & ~mask) | (new_value & mask);
+	return msvc_control_word;
+}
+
+unsigned int _controlfp(unsigned int new_value, unsigned int mask)
+{
+	/* _controlfp ignores the denormal mask */
+	return _control87(new_value, mask & ~_EM_DENORMAL);
+}
+
+unsigned int _statusfp(void)
+{
+	return 0;
+}
+
+unsigned int _clearfp(void)
+{
+	return 0;
 }
 #else
 /* x87: glibc's floating-point environment holds the control and status
@@ -678,7 +705,8 @@ int _fileno(FILE *stream)
 	return fileno(stream);
 }
 
-/* libtiff maps its POSIX calls onto the MSVC underscore names itself */
+/* the MSVC underscore names of the POSIX file calls (the game's libtiff
+used them; the builds leave it out: port.json) */
 
 int _open(const char *path, int flags, ...)
 {

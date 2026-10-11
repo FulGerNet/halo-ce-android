@@ -48,6 +48,8 @@ static struct peer*find_peer(const unsigned char*id){for(int i=0;i<127;i++)if(p2
 void make_address(struct sockaddr_in*a,unsigned long ip,unsigned short port){a->sin_addr.s_addr=ip;a->sin_port=port;}
 int posix_socket_sendto(int fd,const void*d,int n,int f,const void*a,int z){udp++;memcpy(captured,d,n);captured_size=n;return n;}
 int p2p_signal_relay_send(const unsigned char*id,const unsigned char*d,int n){relayed++;memcpy(captured,d,n);captured_size=n;return 1;}
+static int webrtc_sent;
+void p2p_webrtc_send(int connection,const void*d,int n){webrtc_sent++;}
 void p2p_signal_stop_joining(void){}
 char *address_text(unsigned long a,unsigned short p,char*t){return "direct";}
 void stun_received(const unsigned char*p,int n,const struct sockaddr_in*a){}
@@ -60,7 +62,7 @@ for name in ['packet_counter','packet_nonce','peer_send_to','peer_send','peer_pi
 transport+=r'''
 int run_tests(void){
  struct peer *peer=&p2p.peers[0];struct p2p_candidate relay={0,0};unsigned char inner[1400],saved[2048],sender[6]={1,2,3,4,5,6};int n;
- p2p.tunnel_socket=1;peer->used=1;memcpy(identifier,sender,6);memcpy(peer->identifier,sender,6);
+ p2p.tunnel_socket=1;peer->used=1;peer->connection=-1;memcpy(identifier,sender,6);memcpy(peer->identifier,sender,6);
  memset(peer->send_key,42,32);memcpy(peer->receive_key,peer->send_key,32);peer->receive_window=1;
  inner[0]=_packet_datagram;memset(inner+1,99,1399);
  now=4000;peer_send_to(peer,&relay,inner,1400);if(udp||relayed!=1||captured_size!=1431)return 1;
