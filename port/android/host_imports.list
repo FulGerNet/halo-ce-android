@@ -41,6 +41,8 @@ host_touch_field_of_view
 host_touch_cheats_read
 host_touch_cheat_result
 host_touch_cheat_sync
+host_touch_hud_read
+host_touch_app_version
 host_sdl_open_gamepad
 host_sdl_gamepad_from_id
 host_sdl_gamepad_axis

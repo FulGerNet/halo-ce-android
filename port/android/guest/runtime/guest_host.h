@@ -84,6 +84,11 @@ float host_touch_field_of_view(void);
 unsigned int host_touch_cheats_read(int *commands);
 void host_touch_cheat_result(int id, int status);
 void host_touch_cheat_sync(int id, int active);
+/* Edit in-game UI: the x and y each of the weapons' panel, the health panel
+and the motion sensor is moved by, as fractions of the screen, into offsets[6] */
+void host_touch_hud_read(float *offsets);
+/* the installed app's version for the main menu's build label, "" until the app told it */
+void host_touch_app_version(char *buffer, unsigned int size);
 unsigned int host_sdl_open_gamepad(unsigned int id);
 unsigned int host_sdl_gamepad_from_id(unsigned int id);
 int host_sdl_gamepad_axis(unsigned int gamepad, int axis);

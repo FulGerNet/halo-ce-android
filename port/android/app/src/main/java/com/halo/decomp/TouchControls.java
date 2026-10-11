@@ -103,6 +103,14 @@ public final class TouchControls extends View implements SensorEventListener {
     private static native int nativeCheatStatus(int id);
     private static native void nativeFieldOfView(float degrees);
     private StartupCheats startupCheats;
+    // Edit in-game UI: the game's own HUD panels, saved apart from the touch layout.
+    private static native void nativeHudLayout(float[] offsets);
+    // The main menu's build label: the installed app's own version, whatever build this is.
+    private static native void nativeAppVersion(String version);
+    private HudLayout hud = new HudLayout();
+    private boolean hudEditing;
+    private int hudPointer = -1, hudPanel = -1;
+    private float hudLastX, hudLastY;
     private int dragPointer = -1, dragControl = -1;
     private float dragOffsetX, dragOffsetY;
     private float scale = 1, offsetX, offsetY;
@@ -124,6 +132,8 @@ public final class TouchControls extends View implements SensorEventListener {
             vibrator = manager == null ? null : manager.getDefaultVibrator();
         } else vibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
         preferences = context.getSharedPreferences("touch-layout-v1", Context.MODE_PRIVATE);
+        hud = HudLayout.load(preferences.getString("hud-layout", null));
+        nativeAppVersion(appVersion(context));
         try {
             java.io.File folder = context.getExternalFilesDir(null);
             if (folder == null) throw new java.io.IOException("Game storage is unavailable");
@@ -184,6 +194,7 @@ public final class TouchControls extends View implements SensorEventListener {
 
     public void reset() {
         dragPointer = dragControl = menuPointer = -1;
+        hudPointer = hudPanel = -1;
         owners.clear();
         buttonTouches.clear();
         lookPointer = -1;
@@ -353,6 +364,7 @@ public final class TouchControls extends View implements SensorEventListener {
     @Override public boolean performClick() { super.performClick(); return true; }
 
     private boolean editTouch(MotionEvent event, int action, int index, int id, float x, float y) {
+        if (hudEditing) return hudTouch(event, action, id, x, y);
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
             if (dragPointer < 0) {
                 int control = hit(x, y);
@@ -381,18 +393,85 @@ public final class TouchControls extends View implements SensorEventListener {
         return true;
     }
 
+    // Edit in-game UI: drag the three panels; Save and Reset sit at the bottom right,
+    // clear of where the game draws its HUD.
+    private float hudButtonY() { return logicalHeight-Math.max(46, insetBottom/scale+46); }
+    private float hudSaveX() { return logicalWidth-Math.max(50, insetRight/scale+50); }
+    private float hudResetX() { return hudSaveX()-84; }
+
+    private boolean hudTouch(MotionEvent event, int action, int id, float x, float y) {
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
+            if (hudPointer < 0) {
+                if (inside(x, y, hudSaveX(), hudButtonY(), 36)) {
+                    exitHudEditing(); performClick();
+                } else if (inside(x, y, hudResetX(), hudButtonY(), 36)) {
+                    hud.reset(); nativeHudLayout(hud.offsets()); performClick();
+                } else {
+                    int panel = hud.hit(x, y, logicalWidth, logicalHeight);
+                    if (panel >= 0) { hudPointer = id; hudPanel = panel; hudLastX = x; hudLastY = y; }
+                }
+            }
+        } else if (action == MotionEvent.ACTION_MOVE && hudPointer >= 0) {
+            int pointer = event.findPointerIndex(hudPointer);
+            if (pointer >= 0) {
+                float nx = (event.getX(pointer)-offsetX)/scale, ny = (event.getY(pointer)-offsetY)/scale;
+                hud.move(hudPanel, nx-hudLastX, ny-hudLastY, logicalWidth, logicalHeight);
+                hudLastX = nx; hudLastY = ny;
+                // The game's HUD follows the finger where it is drawn behind the editor.
+                nativeHudLayout(hud.offsets());
+            }
+        } else if (action == MotionEvent.ACTION_CANCEL ||
+                   ((action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_POINTER_UP) && id == hudPointer)) {
+            hudPointer = hudPanel = -1;
+        }
+        invalidate();
+        return true;
+    }
+
+    /** Saves the panels and returns to General; a failed save keeps the editor open. */
+    private void exitHudEditing() {
+        if (!preferences.edit().putString("hud-layout", hud.save()).commit()) {
+            Toast.makeText(getContext(), "Could not save the in-game UI. Try again.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        reset(); hudEditing = false; editing = false; menuPage = 3;
+        nativeHudLayout(hud.offsets()); revision++; publishMenu(); updateSensors(); invalidate();
+    }
+
+    private void drawHudEditor(Canvas canvas) {
+        canvas.save(); canvas.translate(offsetX, offsetY); canvas.scale(scale, scale);
+        for (int panel = 0; panel < HudLayout.COUNT; panel++) {
+            float[] b = hud.bounds(panel, logicalWidth, logicalHeight);
+            boolean active = panel == hudPanel;
+            paint.setStyle(Paint.Style.FILL); paint.setColor(active ? 0x7783d9ff : 0x55304050);
+            canvas.drawRoundRect(b[0], b[1], b[2], b[3], 10, 10, paint);
+            paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(2);
+            paint.setColor(active ? 0xffaee7ff : 0xffffffff);
+            canvas.drawRoundRect(b[0], b[1], b[2], b[3], 10, 10, paint);
+            paint.setStyle(Paint.Style.FILL); paint.setColor(Color.WHITE);
+            paint.setTextAlign(Paint.Align.CENTER); paint.setTextSize(16);
+            canvas.drawText(HudLayout.name(panel), (b[0]+b[2])/2, (b[1]+b[3])/2+6, paint);
+        }
+        circle(canvas, hudSaveX(), hudButtonY(), 36, "SAVE", false, 13);
+        circle(canvas, hudResetX(), hudButtonY(), 36, "RESET", false, 13);
+        paint.setTextAlign(Paint.Align.CENTER); paint.setTextSize(14);
+        canvas.drawText("DRAG THE RADAR, WEAPONS AND HEALTH PANELS, THEN SAVE",
+            logicalWidth/2, hudButtonY()+5, paint);
+        canvas.restore();
+    }
+
     private float toolbarY() { return Math.max(38, insetTop/scale+38); }
     private float optionsX() { return logicalWidth-Math.max(42, insetRight/scale+42); }
 
     private void editorButton(Canvas canvas) {
-        if (editing) circle(canvas, optionsX(), toolbarY(), 34, "Save", false);
+        if (editing) circle(canvas, optionsX(), toolbarY(), 34, "SAVE", false);
         if (editing) {
-            circle(canvas, optionsX()-156, toolbarY(), 34, "Export", false);
-            circle(canvas, optionsX()-78, toolbarY(), 34, "Import", false);
+            circle(canvas, optionsX()-156, toolbarY(), 34, "EXPORT", false);
+            circle(canvas, optionsX()-78, toolbarY(), 34, "IMPORT", false);
             paint.setTextSize(14);
-            canvas.drawText("Drag controls, then Save and exit", logicalWidth/2, toolbarY()+58, paint);
+            canvas.drawText("DRAG CONTROLS, THEN SAVE AND EXIT", logicalWidth/2, toolbarY()+58, paint);
             paint.setTextSize(9);
-            canvas.drawText("and exit", optionsX(), toolbarY()+17, paint);
+            canvas.drawText("AND EXIT", optionsX(), toolbarY()+17, paint);
         }
     }
 
@@ -415,6 +494,12 @@ public final class TouchControls extends View implements SensorEventListener {
                 boolean active = state[0] != 0;
                 if (active != menusActive || menuContext != state[1]) {
                     menusActive = active; menuContext = state[1];
+                    if (hudEditing) {
+                        // The menu went away under the editor: back to what was saved.
+                        hudEditing = false;
+                        hud = HudLayout.load(preferences.getString("hud-layout", null));
+                        nativeHudLayout(hud.offsets());
+                    }
                     menuPage = 0; editing = false; menuOverlayVisible = false;
                     reset(); cancelRumble(); updateSensors(); revision++; publishMenu();
                 }
@@ -429,7 +514,8 @@ public final class TouchControls extends View implements SensorEventListener {
 
     public boolean menuBack() {
         if (!menusActive) return false;
-        if (editing) {
+        if (hudEditing) exitHudEditing();
+        else if (editing) {
             if (saveLayout()) {
                 editing = false; menuPage = 2; revision++; publishMenu(); invalidate();
             }
@@ -441,6 +527,11 @@ public final class TouchControls extends View implements SensorEventListener {
     private void applyMenuAction(int action, int value) {
         // Release overlay buttons before switching to a custom page.
         if (owners.size() != 0) reset();
+        // A controller's B under the in-game UI editor leaves it as Save does.
+        if (hudEditing) {
+            if (action == 90) exitHudEditing();
+            return;
+        }
         if (action >= 3000) {
             int id = action-3000;
             if (id < 0 || id >= CHEATS.length) return;
@@ -473,6 +564,7 @@ public final class TouchControls extends View implements SensorEventListener {
             else if (menuPage == 12) menuPage = 8;
             else menuPage = 2;
         } else if (action == 12) { layout.overlayDisabled = false; saveLayout(); editing = true; visible = true; reset(); updateSensors(); }
+        else if (action == 14) { hudEditing = true; editing = true; reset(); updateSensors(); }
         else if (action == 33) { layout.overlayDisabled = !layout.overlayDisabled; reset(); saveLayout(); }
         else if (action == 43) {
             layout.fieldOfView = TouchLayout.MIN_FOV+Math.max(0, Math.min(1000, value))*(TouchLayout.MAX_FOV-TouchLayout.MIN_FOV)/1000;
@@ -497,10 +589,21 @@ public final class TouchControls extends View implements SensorEventListener {
         revision++; publishMenu(); invalidate();
     }
 
+    /** the installed package's version name and code, as Android has them now */
+    private static String appVersion(Context context) {
+        try {
+            android.content.pm.PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            long code = Build.VERSION.SDK_INT >= 28 ? info.getLongVersionCode() : info.versionCode;
+            return "v"+info.versionName+" ("+code+")";
+        } catch (android.content.pm.PackageManager.NameNotFoundException | RuntimeException e) {
+            return "v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.HALO_BUILD_NUMBER+")";
+        }
+    }
+
     private void openCreator() {
             try {
                 getContext().startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse("https://www.youtube.com/@fulger.a")));
+                    android.net.Uri.parse("https://github.com/cybersecurity/halo-ce-universal")));
             } catch (android.content.ActivityNotFoundException e) {
                 Toast.makeText(getContext(), "No browser available", Toast.LENGTH_SHORT).show();
             }
@@ -526,7 +629,7 @@ public final class TouchControls extends View implements SensorEventListener {
                 vibrator == null || !vibrator.hasVibrator() ? 0 : 30);
             row.accept("Gyroscope: "+(gyroscope == null ? "unavailable" : layout.gyroscopeEnabled ? "ON" : "OFF"), gyroscope == null ? 0 : 31);
             row.accept("Gyroscope sensitivity", 5); row.accept("FPS counter: "+(layout.fpsCounter ? "ON" : "OFF"), 32);
-            row.accept("Field of view (FOV)", 13);
+            row.accept("Field of view (FOV)", 13); row.accept("Edit in-game UI", 14);
         } else if (menuPage == 13) {
             title = "Field of view (FOV)";
             row.accept(String.format(java.util.Locale.US, "FOV: %.0f degrees", layout.fieldOfView), 43);
@@ -567,8 +670,11 @@ public final class TouchControls extends View implements SensorEventListener {
         if (menuPage != 0) row.accept("Back", 90);
         int[] ids = new int[actions.size()], progress = new int[values.size()];
         for (int i = 0; i < ids.length; i++) { ids[i] = actions.get(i); progress[i] = values.get(i); }
+        // The game's menus are set in capitals; the Porting screens match them.
+        String[] rows = new String[labels.size()];
+        for (int i = 0; i < rows.length; i++) rows[i] = labels.get(i).toUpperCase(java.util.Locale.ROOT);
         // Keep the revision stable for status refreshes so pending taps remain valid.
-        nativeMenuPublish(revision, menuPage, editing, title, labels.toArray(new String[0]), ids, progress);
+        nativeMenuPublish(revision, menuPage, editing, title.toUpperCase(java.util.Locale.ROOT), rows, ids, progress);
     }
 
     private boolean saveLayout() {
@@ -597,7 +703,7 @@ public final class TouchControls extends View implements SensorEventListener {
     public void startDeviceInput() {
         if (deviceInputActive) return;
         deviceInputActive = true;
-        nativeFieldOfView(layout.fieldOfView);
+        nativeFieldOfView(layout.fieldOfView); nativeHudLayout(hud.offsets());
         gyroAim.reset(); updateSensors(); post(rumblePoll); post(menuPoll);
     }
 
@@ -665,6 +771,7 @@ public final class TouchControls extends View implements SensorEventListener {
     }
 
     @Override protected void onDraw(Canvas canvas) {
+        if (hudEditing) { drawHudEditor(canvas); return; }
         if (layout.overlayDisabled) return;
         if (layout.fpsCounter && !menusActive && !editing) {
             paint.setStyle(Paint.Style.FILL); paint.setColor(Color.WHITE);

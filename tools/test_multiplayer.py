@@ -1,5 +1,8 @@
 """Exercise actual encrypted tunnel code with UDP blocked and MQTT relay delivery."""
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wasm_test
 import re, shutil, subprocess
 root=Path(__file__).resolve().parent.parent
 out=root/'build/multiplayer-tests';out.mkdir(parents=True,exist_ok=True)
@@ -89,8 +92,7 @@ def run(name,code):
  ndk=Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
  subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/(name+'.c')),'-o',str(out/(name+'.o'))],check=True)
  subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/(name+'.o')),'-o',str(out/(name+'.wasm'))],check=True)
- (out/(name+'.cjs')).write_text('const fs=require("fs");const i=new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(__dirname+"/'+name+'.wasm")));const r=i.exports.run_tests();if(r)throw new Error("'+name+' regression "+r);console.log("'+name+' passed");')
- subprocess.run([shutil.which('node'),str(out/(name+'.cjs'))],check=True)
+ wasm_test.check(out/(name+'.wasm'), name, name+' passed')
 run('encrypted-tunnel-fallback',transport)
 relay=r'''
 enum { TOPIC_SIZE=64, BUFFER_SIZE=4096,OUTPUT_BUFFER_SIZE=65536,MAXIMUM_MESSAGE_SIZE=512,NUMBER_OF_TOPICS=5,MAXIMUM_LISTING_SIZE=256,MAXIMUM_IN_FLIGHT=4,PUBLISH_BURST=8,PUBLISH_INTERVAL=125,_topic_host=0,_topic_join,_topic_own_slot,_topic_query,_topic_slots,_broker_idle=0,_broker_ready=3,WSAEWOULDBLOCK=10035,WSAEINPROGRESS=10036,_message_join=1,_message_accept=2,MESSAGE_VERSION=3};

@@ -1,5 +1,8 @@
 """Execute the real director input function: tap switching and flying swipe ownership."""
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wasm_test
 import re, shutil, subprocess
 
 root=Path(__file__).resolve().parent.parent
@@ -107,5 +110,4 @@ int run_tests(void){
 ndk=Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
 subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
 subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/'test.o'),'-o',str(out/'test.wasm')],check=True)
-(out/'run.cjs').write_text('const fs=require("fs");const i=new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(__dirname+"/test.wasm")));const n=i.exports.run_tests();if(n)throw Error("Camera regression "+n);console.log("Camera tap, held grenade compatibility, flying swipe, Zoom ownership and movement passed");')
-subprocess.run([shutil.which('node'),str(out/'run.cjs')],check=True)
+wasm_test.check(out/'test.wasm', 'Camera', 'Camera tap, held grenade compatibility, flying swipe, Zoom ownership and movement passed')

@@ -7062,11 +7062,14 @@ static void widget_instance_render_recursive(
 	ui_mouse_note_target(widget, definition, offset);
 #ifdef HALO_ANDROID
     if (widget->type == _ui_widget_type_text_box && widget->parameters.text_box.text) {
+        /* The main menu's build label shows the app's version; a tap on it
+           opens the project's page. */
         wchar_t const *credit = widget->parameters.text_box.text;
-        char const *expected = "Made by FulGer";
+        char expected[HALO_APP_VERSION_SIZE];
         int n = 0;
+        host_touch_app_version(expected, sizeof(expected));
         while (expected[n] && credit[n] == (wchar_t)expected[n]) ++n;
-        if (!expected[n] && !credit[n] && ui_porting_context == 1 && !ui_porting_menu.page) {
+        if (n && !expected[n] && !credit[n] && ui_porting_context == 1 && !ui_porting_menu.page) {
             ui_porting_credit_bounds = definition->bounds;
             ui_porting_credit_bounds.x0 += offset.x;
             ui_porting_credit_bounds.x1 += offset.x;
@@ -7077,8 +7080,10 @@ static void widget_instance_render_recursive(
     }
 #endif
 #ifdef HALO_ANDROID
-    /* Keep the original list position/focus target, replace its Quit artwork. */
-    if (ui_porting_is_quit(widget)) return;
+    /* Keep the original list position/focus target, replace its Quit artwork:
+       with our picture (ui_porting_adjust_widget), or with text drawn after
+       the menu where the map has no such picture (ui_porting_render). */
+    if (ui_porting_is_quit(widget) && ui_porting_item_bitmap() == NONE) return;
 #endif
 	/* port: a Custom Edition map's picture, drawn over the whole widget, or
 	the unknown level's frame for a map without one
@@ -7143,6 +7148,12 @@ static void widget_instance_render_recursive(
 			clip->y0 += offset.y;
 			clip->y1 += offset.y;
 		}
+#ifdef HALO_ANDROID
+		/* PORTING OPTIONS is wider than the item it stands in: the clip, which
+		starts at the item's own left, would squeeze the picture into it */
+		if (ui_porting_context == 1 && ui_porting_is_quit(widget) && ui_porting_item_bitmap() != NONE)
+			clip = NULL;
+#endif
 		if (widen_to_screen && clip)
 		{
 			/* widen the clip by the same amount (it is offset-shifted but
@@ -7210,6 +7221,16 @@ static void widget_instance_render_recursive(
 	case _ui_widget_type_text_box:
 #ifdef HALO_ANDROID
         if (ui_porting_context == 2 && !ui_porting_menu.page && widget->parent) {
+            /* (the first item's text, for PORTING OPTIONS below the list) */
+            if (!ui_porting_item_text && (ui_mouse_widget_is_item(widget) ||
+                ui_mouse_widget_is_item(widget->parent))) {
+                ui_porting_item_text = widget;
+                ui_porting_item_text_bounds = definition->bounds;
+                ui_porting_item_text_bounds.x0 += offset.x+definition->horizontal_offset;
+                ui_porting_item_text_bounds.x1 += offset.x;
+                ui_porting_item_text_bounds.y0 += offset.y+definition->vertical_offset;
+                ui_porting_item_text_bounds.y1 += offset.y;
+            }
             rasterizer_text_set_ui_scale(definition->bounds.x0+offset.x,
                 definition->bounds.y0+offset.y, 112);
             adjusted_definition.bounds.x1 = definition->bounds.x0+
@@ -7432,6 +7453,7 @@ void render_ui_widgets(
 				offset.y = 0;
 #ifdef HALO_ANDROID
                 ui_porting_credit_visible = FALSE;
+                ui_porting_item_text = NULL;
 #endif
 				/* the mouse drives the first player's menus; a widget shown in
 				every viewport (a dialog for everyone) is noted in the first

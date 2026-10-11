@@ -21,6 +21,11 @@ static struct halo_porting_menu porting_menu;
 static int frame_count, frame_fps;
 static struct timespec frame_time;
 static float field_of_view = 70.0f;
+/* Edit in-game UI: x and y of the weapons' panel, the health panel and the
+   motion sensor, as fractions of the screen. */
+static float hud_offsets[6];
+/* The installed app's version, for the main menu's build label. */
+static char app_version[HALO_APP_VERSION_SIZE];
 
 JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeFieldOfView(
     JNIEnv *env, jclass cls, jfloat degrees)
@@ -29,6 +34,52 @@ JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeFieldOfView(
     if (!(degrees >= 55.0f && degrees <= 90.0f)) return;
     pthread_mutex_lock(&touch_lock);
     field_of_view = degrees;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeHudLayout(
+    JNIEnv *env, jclass cls, jfloatArray values)
+{
+    jfloat next[6];
+    int i;
+    (void)cls;
+    if (!values || (*env)->GetArrayLength(env, values) != 6) return;
+    (*env)->GetFloatArrayRegion(env, values, 0, 6, next);
+    for (i = 0; i < 6; ++i)
+        if (!(next[i] >= -1.0f && next[i] <= 1.0f)) return;
+    pthread_mutex_lock(&touch_lock);
+    memcpy(hud_offsets, next, sizeof(hud_offsets));
+    pthread_mutex_unlock(&touch_lock);
+}
+
+JNIEXPORT void JNICALL Java_com_halo_decomp_TouchControls_nativeAppVersion(
+    JNIEnv *env, jclass cls, jstring version)
+{
+    const char *text;
+    (void)cls;
+    if (!version) return;
+    text = (*env)->GetStringUTFChars(env, version, NULL);
+    if (!text) return;
+    pthread_mutex_lock(&touch_lock);
+    strncpy(app_version, text, sizeof(app_version)-1);
+    app_version[sizeof(app_version)-1] = 0;
+    pthread_mutex_unlock(&touch_lock);
+    (*env)->ReleaseStringUTFChars(env, version, text);
+}
+
+void host_touch_app_version(char *buffer, unsigned int size)
+{
+    if (!size) return;
+    pthread_mutex_lock(&touch_lock);
+    strncpy(buffer, app_version, size-1);
+    buffer[size-1] = 0;
+    pthread_mutex_unlock(&touch_lock);
+}
+
+void host_touch_hud_read(float *offsets)
+{
+    pthread_mutex_lock(&touch_lock);
+    memcpy(offsets, hud_offsets, sizeof(hud_offsets));
     pthread_mutex_unlock(&touch_lock);
 }
 

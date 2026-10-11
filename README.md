@@ -129,6 +129,7 @@ python tools/test_porting_actions.py
 python tools/test_menu_touch.py
 python tools/test_porting_ui.py
 python tools/test_startup_cheats_engine.py
+python tools/test_hud_layout_engine.py
 ```
 
 ## Android-only source layout

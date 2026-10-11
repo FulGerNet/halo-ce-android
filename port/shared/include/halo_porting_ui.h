@@ -13,4 +13,8 @@ void host_porting_action(int revision, int action, int value);
 void host_touch_ui_context(int menus, int context);
 void host_touch_pointer_read(float *point);
 void host_touch_frame(void);
+/* the installed app's version ("v4.0 (4192)"), or "" before the app told it:
+the main menu's build label shows it */
+#define HALO_APP_VERSION_SIZE 48
+void host_touch_app_version(char *buffer, unsigned int size);
 #endif

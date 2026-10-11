@@ -81,8 +81,9 @@ To make a copy of the saved games, enter
 An `adb pull` of the whole `save` folder stops at the `blam.lst` files of
 `save/z`, which adb cannot read.
 
-The main menu build label shows **Made by FulGer** for all imported disc versions.
-Tap it to open https://www.youtube.com/@fulger.a.
+The main menu's build label shows the installed app's version, read from the
+package at every start (for example `v4.0 (4192)`: the version name and code).
+Tap it to open https://github.com/cybersecurity/halo-ce-universal.
 
 ## Controls
 
@@ -160,7 +161,7 @@ bitmap is selected from the current map and fills the entire widescreen area.
   50% to 200%; look sensitivity ranges from 0.25x to 4x. All controls,
   including copies, can be reached by scrolling without Previous/Next pages.
 - **General** contains **Rumble**, **Gyroscope**, **Gyroscope sensitivity**,
-  **FPS counter** and **Field of view (FOV)**. FOV uses a 55–90 degree slider
+  **FPS counter**, **Field of view (FOV)** and **Edit in-game UI** (4.0, below). FOV uses a 55–90 degree slider
   with a 70 degree default, preserves weapon zoom and is saved for both menus.
   Unsupported hardware is marked unavailable. Rumble
   defaults on, gyro and FPS default off. Gyro sensitivity has its own
@@ -512,3 +513,49 @@ The main-menu Porting options label is 40% larger. Flying-camera control
 uses the same touch/gyro look reader as the player camera. While free-camera
 controls are selected, the earlier player-input pass leaves the motion
 accumulator intact for the director, so every swipe reaches the camera.
+
+### Version 4.0
+
+Synchronized with upstream `6399ed9d` (voice chat, WebRTC internet play with
+browsers, profiling builds, upstream's own touch menus and controls). The
+fork keeps its overlay, Porting options, relay fallback and cheats: upstream's
+touch controls drive only its web build here, and the app now links Opus and
+Mbed TLS as upstream's Android build does.
+
+**PORTING OPTIONS** is written in capitals in both menus:
+
+- In the main menu the other items are pictures of text, not text. The entry
+  is now a picture made the same way (`tools/porting_assets.py`): the same
+  typeface (OpenCE), size, half-transparent blue and, when selected, the same
+  white text with a blue glow. The game's own widget draws and animates it in
+  Quit's place; the picture is twice as wide as the other items' for the longer
+  text. With `display.menus = "xbox"` there is no such picture, and the entry
+  is drawn as text as before.
+- In the pause menu the entry has the font, colour, justification and 112%
+  size of the menu's own items, and its text sits in its row where theirs does.
+
+Every title and row of the Porting options screens is in capitals. Opened from
+the main menu they are set in the main menu's typeface, one picture a
+character (`pc\porting\font`, tinted as it is drawn, made smaller when a row
+would not fit); opened from the pause menu, in the pause menu's own font. The
+layout editor's labels are capitals too.
+
+**General > Edit in-game UI** moves the game's own HUD. The editor shows three
+panels to drag: **RADAR** (the motion sensor), **WEAPONS** (the panel at the
+top left) and **HEALTH** (the panel at the top right). **SAVE** keeps them and
+returns to General, **RESET** puts them back, and Android Back saves too. The
+game moves everything it anchors at that corner of the screen by the same
+distance, so a panel moves whole; the HUD's messages stay. A panel cannot
+leave the screen. The places are fractions of the screen, kept in the app's
+preferences (`hud-layout`) and applied again at every start. They are not part
+of a `.halolayout` file: **Export** and **Import** leave them alone. A split
+screen keeps the game's own layout.
+
+Validation: `python tools/test_touch_layout.py` also checks the panels' rest
+places, dragging, screen limits, saving and that an export holds no HUD.
+`python tools/test_hud_layout_engine.py` runs the game's actual HUD placement
+with moved panels, `python tools/test_porting_ui.py` the main menu's picture
+swap, the pause menu's style and the typeface's layout. The engine tests need
+the Windows Android NDK and Node, or Edge or Chrome when Node is not installed
+(`tools/wasm_test.py`). How the menus and the moved HUD look must still be
+checked on a device.

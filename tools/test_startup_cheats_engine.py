@@ -1,5 +1,8 @@
 """Run the actual map loader and game-thread cheat dispatch in freestanding wasm."""
 from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import wasm_test
 import re
 import shutil
 import subprocess
@@ -91,5 +94,4 @@ int run_tests(void){
 ndk = Path('C:/Android/ndk/29.0.14206865/toolchains/llvm/prebuilt/windows-x86_64/bin')
 subprocess.run([str(ndk/'clang.exe'),'--target=wasm32','-std=c99','-ffreestanding','-fno-builtin','-c',str(out/'test.c'),'-o',str(out/'test.o')],check=True)
 subprocess.run([str(ndk/'ld.lld.exe'),'-flavor','wasm','--no-entry','--export=run_tests',str(out/'test.o'),'-o',str(out/'test.wasm')],check=True)
-(out/'run.cjs').write_text('const fs=require("fs");const i=new WebAssembly.Instance(new WebAssembly.Module(fs.readFileSync(__dirname+"/test.wasm")));const r=i.exports.run_tests();if(r)throw new Error("Startup engine regression "+r);console.log("Engine init parsing, spawn deferral, once-per-map execution, pause commands and client rules passed");')
-subprocess.run([shutil.which('node'),str(out/'run.cjs')],check=True)
+wasm_test.check(out/'test.wasm', 'Startup engine', 'Engine init parsing, spawn deferral, once-per-map execution, pause commands and client rules passed')
